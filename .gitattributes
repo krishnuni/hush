@@ -1,0 +1,7 @@
+* text=auto
+*.sh text eol=lf
+*.pdf binary
+*.ttf binary
+*.png binary
+*.ico binary
+public/THIRD_PARTY_NOTICES.txt -whitespace

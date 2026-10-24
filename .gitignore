@@ -1,0 +1,14 @@
+node_modules/
+dist/
+target/
+test-results/
+playwright-report/
+.DS_Store
+*.log
+.env*
+src-tauri/gen/
+*.tsbuildinfo
+runtime/
+
+src-tauri/resources/
+src-tauri/tauri.voice.conf.json

@@ -1,0 +1,8 @@
+[workspace]
+members = ["crates/hush-core", "crates/hush-voice-worker", "crates/hush-voice-host", "vendor/pocket-runtime", "src-tauri"]
+default-members = ["crates/hush-core"]
+resolver = "3"
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
