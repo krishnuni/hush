@@ -1,0 +1,19 @@
+{
+  "name": "Hush — Your reading room",
+  "short_name": "Hush",
+  "description": "A quiet, private home for your books.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fcf8ef",
+  "theme_color": "#fcf8ef",
+  "icons": [
+    {
+      "src": "./hush-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
