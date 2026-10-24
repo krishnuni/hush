@@ -2,15 +2,11 @@
 
 ## Current status — 24 October 2026
 
-GitHub publication is authorized. The source and workflows are prepared locally;
-repository creation is currently waiting for GitHub browser authentication.
-The secure sign-in returned Google as the selected method, but automatic
-approval review blocked observation of Google's sign-in origin. That route
-needs explicit user approval before it can continue. The GitHub connector
-itself is connected and confirms the `krishnuni` account, but exposes no
-repository-creation or Pages-configuration action.
-No successful remote build, Pages deployment or Windows release is claimed yet.
-Update this section with actual commit, run and deployment links after publishing.
+The complete original source is uploaded to the private repository at
+https://github.com/krishnuni/hush. Public visibility and connector access have
+been approved by the user; GitHub account re-verification still blocks those
+settings. Source upload uses the existing signed-in repository session.
+Remote build and deployment outcomes are recorded only after successful runs.
 
 Local deployment checks passed on 24 October: 30 frontend tests, the production
 build, six EPUB/PDF/error browser cases and two offline cases under `/hush/` on
@@ -52,8 +48,8 @@ Run **Windows desktop preview** on `main`. It compiles the voice worker,
 downloads only the pinned official model/voice assets, verifies their hashes,
 runs actual Windows worker/reconnection tests, stages attribution and builds an
 NSIS installer. The installer and SHA-256 checksum are uploaded as a workflow
-artifact. Selecting `publish` creates a prerelease only after the build succeeds;
-use a new tag such as `v0.1.0-preview.1` for each release.
+artifact. The workflow has read-only repository permissions and does not publish a
+release. A preview release can be created separately after reviewing the result.
 
 The installer is unsigned. Automated inference and compilation do not establish
 native GUI/audio behavior, physical listening quality or clean-machine setup.
