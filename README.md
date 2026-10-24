@@ -150,8 +150,8 @@ transport and reconnection. State-machine unit tests use controlled media to
 verify races; those are distinct from real-neural integration evidence.
 CI includes frontend, offline, Rust and native-host compilation checks. The
 separate Pages workflow deploys the tested web reader on pushes to `main`.
-The manual Windows workflow builds an unsigned installer and can publish an
-explicitly requested preview release. Formatting uses Prettier and rustfmt.
+The manual Windows workflow builds an unsigned installer and stores it as a
+workflow artifact for evaluation. Formatting uses Prettier and rustfmt.
 
 All application code, sample literature and geometric covers were created from
 scratch. Third-party engines and fonts are dependencies. Vendored MIT inference
