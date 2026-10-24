@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main-window",
+  "description": "Trusted Hush window only. Imported publications receive no shell or filesystem plugin permissions.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}
