@@ -1,0 +1,47 @@
+name: Windows desktop preview
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: hush-windows-preview
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run voice:build
+      - run: npm run voice:setup
+      - name: Test storage, real inference and worker reconnection on Windows
+        shell: pwsh
+        run: |
+          $env:HUSH_VOICE_WORKER = (Resolve-Path target/release/hush-voice-worker.exe).Path
+          $env:HUSH_VOICE_CONFIG = (Resolve-Path runtime/voice/config.yaml).Path
+          $env:HUSH_VOICE_EMBEDDING = (Resolve-Path runtime/voice/alba.safetensors).Path
+          cargo test --release -p hush-core -p hush-voice-host -- --include-ignored --test-threads=1
+          if ($LASTEXITCODE -ne 0) { throw 'The real local narration checks failed.' }
+      - name: Stage attributed voice and build the NSIS installer
+        run: npm run desktop:build:voice
+      - name: Create installer checksums
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          $installers = @(Get-ChildItem target/release/bundle/nsis/*.exe)
+          if ($installers.Count -ne 1) { throw 'Expected exactly one Windows installer.' }
+          Copy-Item $installers[0].FullName artifacts/
+          $hash = Get-FileHash (Join-Path artifacts $installers[0].Name) -Algorithm SHA256
+          "$($hash.Hash.ToLower())  $($installers[0].Name)" | Set-Content -Encoding utf8 artifacts/SHA256SUMS.txt
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: Hush-Windows-preview
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 14
