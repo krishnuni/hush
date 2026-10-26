@@ -47,6 +47,7 @@ export class Narrator {
   private epoch = 0;
   private abort = new AbortController();
   private media: HTMLAudioElement | null = null;
+  private player: HTMLAudioElement | null = null;
   private url: string | null = null;
   private clip: Clip | null = null;
   private spoken: SpokenSentence | null = null;
@@ -101,6 +102,21 @@ export class Narrator {
     this.url = null;
     this.clip = null;
   }
+  /** Activate and reuse one media element in the user's gesture, including on iOS. */
+  unlock = () => {
+    if (this.player) return;
+    this.player = this.makeAudio(
+      'data:audio/wav;base64,UklGRiUAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQEAAACA',
+    );
+    this.player.setAttribute('playsinline', '');
+    this.player.volume = 0;
+    void this.player
+      .play()
+      .then(() => {
+        if (!this.media) this.player?.pause();
+      })
+      .catch(() => {});
+  };
   private invalidate() {
     this.epoch++;
     this.abort.abort();
@@ -211,7 +227,8 @@ export class Narrator {
       if (token !== this.epoch) return;
       this.clip = clip;
       this.url = URL.createObjectURL(clip.blob);
-      const player = this.makeAudio(this.url);
+      const player = (this.player ??= this.makeAudio(this.url));
+      player.src = this.url;
       this.media = player;
       const exact =
         !!resume &&
@@ -256,7 +273,13 @@ export class Narrator {
           this.fail(new Error('This audio clip could not be played. Retry to generate it again.'));
         }
       };
-      await player.play();
+      try {
+        await player.play();
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'NotAllowedError') {
+          this.emit({ state: 'paused', error: '' });
+        } else throw error;
+      }
     } catch (error) {
       if (token === this.epoch && !signal.aborted) this.fail(error);
     }

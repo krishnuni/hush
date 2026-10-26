@@ -131,7 +131,11 @@ class Media {
     this.paused = true;
   }
   removeAttribute() {}
-  load() {}
+  load() {
+    this.loaded = false;
+    this.ended = false;
+    this.currentTime = 0;
+  }
   tick(value: number) {
     this.currentTime = value;
     this.ontimeupdate?.(new Event('timeupdate'));
@@ -212,7 +216,8 @@ describe('narration lifecycle and source continuity', () => {
     test.media[0].finish();
     await vi.waitFor(() => expect(test.spoken).toHaveBeenLastCalledWith(unit('2')));
     expect(test.repo.synthesize).toHaveBeenCalledTimes(2);
-    test.media[1].finish();
+    expect(test.media).toHaveLength(1);
+    test.media[0].finish();
     await vi.waitFor(() => expect(test.narrator.snapshot().state).toBe('ended'));
     test.narrator.stop();
   });
