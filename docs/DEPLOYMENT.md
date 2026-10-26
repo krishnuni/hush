@@ -1,14 +1,26 @@
 # GitHub Pages delivery
 
-## Publication status — 26 October 2026
+## Publication status — 27 October 2026
 
-The repository is https://github.com/krishnuni/hush. Public source/reader
-publication is authorized. Repository settings/account re-verification have
-previously blocked Pages activation; source upload and a workflow definition
-alone do not establish a reachable site. The earlier Pages run 40101748786
-failed at `configure-pages` because the repository had no enabled Pages site.
-The earlier verification run 40101748707 passed all five reader/native jobs.
-New browser-native code needs its own recorded remote result.
+The source repository is public at **https://github.com/krishnuni/hush**.
+The reader is deployed over HTTPS at **https://krishnuni.github.io/hush/**.
+Pages uses **GitHub Actions** as its publishing source, with HTTPS enforced.
+
+[Pages run 40373280828, attempt 2](https://github.com/krishnuni/hush/actions/runs/40373280828/attempts/2)
+successfully built and deployed commit `65fbbe5f630d1361f04c42757fee56155b4a1762`.
+It passed unit tests, real browser neural/reader checks and offline EPUB/PDF
+checks before uploading and deploying the artifact. The earlier failure at
+`configure-pages` was resolved by enabling Pages on the now-public repository.
+The production browser code is unchanged by this documentation update.
+
+[Browser verification run 40335757205](https://github.com/krishnuni/hush/actions/runs/40335757205)
+also passed on that merged commit: 32 unit tests, eight Chromium reader/neural
+cases, two offline cases and eight WebKit reader/neural cases. The four optional
+desktop Pocket bridge cases are explicitly skipped in this browser run.
+
+The hosted smoke check opens the real Pages URL, adds and renders an original
+EPUB and installs/initializes the optional browser voice from the hosted assets.
+Physical-device and audible-quality limits are recorded in STATUS.md.
 
 ## Production execution
 
