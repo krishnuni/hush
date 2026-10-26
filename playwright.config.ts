@@ -7,7 +7,7 @@ export default defineConfig({
   fullyParallel: false,
   timeout: 180000,
   expect: { timeout: 30000 },
-  workers: process.env.HUSH_VOICE_WORKER ? 1 : undefined,
+  workers: process.env.HUSH_VOICE_WORKER || process.env.HUSH_TEST_WEB_VOICE ? 1 : 2,
   use: {
     baseURL: `http://127.0.0.1:1420${base}`,
     trace: 'retain-on-failure',

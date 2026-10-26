@@ -9,6 +9,7 @@ export default defineConfig({
   clearScreen: false,
   server: { port: 1420, strictPort: true },
   envPrefix: ['VITE_', 'TAURI_ENV_*'],
+  worker: { format: 'es' },
   build: { target: 'es2022', sourcemap: true, chunkSizeWarningLimit: 1100 },
   test: { environment: 'jsdom', include: ['src/**/*.test.ts'], setupFiles: ['src/test-setup.ts'] },
 });

@@ -12,3 +12,4 @@ runtime/
 
 src-tauri/resources/
 src-tauri/tauri.voice.conf.json
+public/narration/
