@@ -1,83 +1,93 @@
-# Hush delivery
+# GitHub Pages delivery
 
-## Current status — 24 October 2026
+## Publication status — 26 October 2026
 
-The complete original source is uploaded to the private repository at
-https://github.com/krishnuni/hush. Public visibility and connector access have
-been approved by the user; GitHub account re-verification still blocks those
-settings. Source upload uses the existing signed-in repository session.
-Remote build and deployment outcomes are recorded only after successful runs.
+The repository is https://github.com/krishnuni/hush. Public source/reader
+publication is authorized. Repository settings/account re-verification have
+previously blocked Pages activation; source upload and a workflow definition
+alone do not establish a reachable site. The earlier Pages run 40101748786
+failed at `configure-pages` because the repository had no enabled Pages site.
+The earlier verification run 40101748707 passed all five reader/native jobs.
+New browser-native code needs its own recorded remote result.
 
-Local deployment checks passed on 24 October: 30 frontend tests, the production
-build, six EPUB/PDF/error browser cases and two offline cases under `/hush/` on
-desktop and phone viewports. Production npm audit reported zero advisories.
-Four neural browser cases explicitly skipped because this deployment check did
-not load a voice worker. The earlier real-neural evidence is recorded separately
-in STATUS.md; it was not re-run or extended by these web deployment checks.
+## Production execution
 
-## Web reader
+The deployed artifact is static HTML, JS, CSS, fonts, service worker, PDF worker
+and optional voice files. Kokoro/Transformers/ONNX WASM runs in a module worker
+on the visitor's desktop or phone. Books stay in IndexedDB; generated audio has
+an independent bounded cache. The Tauri host, Pocket worker, development bridge
+and preview Node process do not execute on Pages.
 
-`.github/workflows/pages.yml` installs locked dependencies, runs unit tests,
-builds using the Pages base path, exercises EPUB/PDF reader flows on desktop and
-phone viewports, verifies offline reopening, then deploys the resulting artifact.
-Select **GitHub Actions** as the publishing source in repository Settings → Pages.
-The deploy job alone receives `pages: write` and `id-token: write`.
+The build fetches pinned model/tokenizer files from the official Hugging Face
+revision, verifies hashes and copies the matching installed WASM runtime and
+voice. `public/narration/` is generated and excluded from git; its approximately
+115 MB contents are included in `dist/`. Runtime requests use the Pages origin,
+not Hugging Face or an external inference API. Initial shell installation does
+not precache the weights. The user enables/downloads the voice explicitly.
 
-The public web edition stores imports and reading state in the visitor's browser.
-It has no document upload backend, paid API or hosted neural inference service.
-The native Pocket TTS worker cannot execute on GitHub Pages. The interface
-reports narration as unavailable in this edition.
+## Activate and deploy
 
-To reproduce the project-path checks locally:
+1. Ensure this repository/account permits Pages hosting. For a public portfolio,
+   make the approved source repository public through Settings → General.
+2. In Settings → Pages → Build and deployment, choose **GitHub Actions**.
+3. Push the final source to `main`, or run **Deploy Hush reader** manually.
+4. Inspect both build and deploy jobs. Open the exact URL returned by deployment
+   and verify import, voice setup and offline reopening at that hosted path.
+
+`pages.yml` obtains `base_path` from `actions/configure-pages`, installs the
+committed dependency graph, runs unit tests, builds the pinned static resources,
+executes desktop/mobile reader and real browser neural tests, and checks offline
+EPUB/PDF before uploading `dist/`. Only the deploy job has `pages: write` and
+`id-token: write`. Builds have read-only source permissions; no workflow pushes
+code or broadens connector access.
+
+`verify.yml` independently runs browser checks and WebKit tests. `verify-desktop.yml`
+is manual for the optional Linux/Windows native checks. `windows-preview.yml`
+manually builds an unsigned attributed installer as a workflow artifact and does
+not publish a release. These native jobs are not dependencies of Pages hosting.
+
+## Reproduce the project path
+
+Use Node 24 and a recent browser:
 
 ```bash
 npm ci
+npm test
 HUSH_BASE_PATH=/hush/ npm run build
-npx playwright install chromium
-HUSH_BASE_PATH=/hush/ npm run test:e2e
+npx playwright install --with-deps chromium webkit
+HUSH_BASE_PATH=/hush/ HUSH_TEST_WEB_VOICE=1 npm run test:e2e -- --workers=1
 HUSH_BASE_PATH=/hush/ npm run test:offline
+HUSH_BASE_PATH=/hush/ HUSH_TEST_WEB_VOICE=1 npm run test:webkit
 node scripts/serve-preview.mjs --base /hush/
 ```
 
-On PowerShell set `$env:HUSH_BASE_PATH = '/hush/'` before running those commands.
-Unset the variable before building a desktop installer. Native builds use `/`.
+PowerShell: set `$env:HUSH_BASE_PATH = '/hush/'` and
+`$env:HUSH_TEST_WEB_VOICE = '1'` before the corresponding commands. Unset the
+base path for native desktop builds, which use `/`. A root-hosted build uses
+`/`; custom-domain/root/project paths need a matching build and service-worker
+scope. Do not open the output with `file://`.
 
-## Windows preview
+## Repository boundaries
 
-Run **Windows desktop preview** on `main`. It compiles the voice worker,
-downloads only the pinned official model/voice assets, verifies their hashes,
-runs actual Windows worker/reconnection tests, stages attribution and builds an
-NSIS installer. The installer and SHA-256 checksum are uploaded as a workflow
-artifact. The workflow has read-only repository permissions and does not publish a
-release. A preview release can be created separately after reviewing the result.
+Commit source, lockfiles, original samples, tests, build/deployment scripts,
+fonts and licences. Exclude personal books, databases, generated audio,
+credentials, runtime weights, dependencies and `dist/`. CI retrieves pinned
+assets without an account token. The static artifact is below Pages' 1 GB site
+limit. See README for resource sizes, design rationale and upstream terms.
 
-The installer is unsigned. Automated inference and compilation do not establish
-native GUI/audio behavior, physical listening quality or clean-machine setup.
-Those checks remain required before promoting a preview to a stable release.
-Native Android/iOS builds remain separate from the responsive mobile web reader.
+## Updates and recovery
 
-## Source boundaries and verification
+Failed build/test jobs prevent deployment. The previously deployed artifact
+remains available. Fix and push or revert with a new commit; do not rewrite
+published history. Shell caches are scoped to the app path and content version.
+Close existing Hush tabs and reopen to permit the installed update to activate.
+Voice cache versions are independent; a model/runtime/voice change must bump
+the voice version and engine key. Generated clip keys include the engine identity.
 
-Commit application source, lockfiles, original samples, vendored runtime source
-with its notices, fonts with their licence, and reproducible scripts. Exclude
-user books, runtime model weights, generated audio, local databases, build
-directories, credentials and machine-specific paths. A full source checkout is
-about a few megabytes; optional voice assets are fetched by the build script.
+If voice setup fails, check storage space, connection and browser capabilities;
+retry reuses verified completed files. Remove downloaded voice in Settings to
+clear that cache without deleting books. Clearing all site data also removes
+the local library, so keep the original documents. No browser can promise to
+retain storage indefinitely or run workers while the OS suspends its tab.
 
-`verify.yml` checks browser reading, Rust storage/voice code and native compilation
-on Linux and Windows. Neural browser cases explicitly skip when the real engine
-is absent. The Windows preview workflow runs the real engine separately.
-
-Historical local test evidence and unresolved platform gates are in
-[STATUS.md](STATUS.md). A workflow definition is not evidence of a completed
-remote run. Only successful GitHub runs and a reachable deployed page establish
-deployment. GitHub Pages configuration follows the
-[official custom workflow guidance](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
-
-## Recovery
-
-A failed check prevents the Pages deploy job. The previously deployed artifact
-remains available. Fix the failing check and push again, or revert the offending
-commit with a new commit; do not rewrite published history. Browser shell caches
-are scoped to Hush's base path and versioned by build. Closing existing Hush tabs
-and reopening lets an installed service-worker update activate.
+GitHub configuration follows the [official custom workflow guidance](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
