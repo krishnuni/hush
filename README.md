@@ -2,13 +2,15 @@
 
 A quiet EPUB/PDF reader that runs directly in a desktop or mobile browser, including **real, on-device neural narration**. The primary distribution is a static GitHub Pages site. Reading, storage, text extraction, speech synthesis and playback run on the visitor’s device; no application server, account, paid inference API, Rust installation or desktop helper is required.
 
+**[Open Hush in your browser](https://krishnuni.github.io/hush/)** · [Source](https://github.com/krishnuni/hush)
+
 ![Hush’s running reader](docs/images/desktop-reader.png)
 
-> Development build. Browser narration is implemented and has passed real inference/media tests in the production build. See [verification evidence](docs/STATUS.md) for the exact engines and viewports tested. A phone viewport is not a physical iPhone test. A working local build does not establish that a GitHub Pages deployment has succeeded.
+> Development build. Browser narration is implemented and has passed real inference/media tests in the production build. GitHub CI passes 32 unit tests and 18 browser checks across Chromium and WebKit. See [verification evidence](docs/STATUS.md) for the exact engines and viewports tested. A phone viewport is not a physical iPhone test. The public Pages deployment is verified in [delivery details](docs/DEPLOYMENT.md).
 
 ## Read and listen
 
-1. Open the hosted reader over HTTPS, or run the local preview below.
+1. Open **[Hush](https://krishnuni.github.io/hush/)** over HTTPS, or run the local preview below.
 2. Import a supported, DRM-free EPUB or text PDF. Three original sample books are available for exploring the reader.
 3. Set the theme, typeface, size, line spacing, margins and width. Chapters, bookmarks and reading places are saved automatically.
 4. Choose **Listen**. In Settings, select **Enable browser voice** if the voice has not been downloaded. Keep the tab open during setup; Wi-Fi is recommended.
@@ -52,6 +54,8 @@ Open **http://127.0.0.1:1420**. The preview server has no separate dependencies.
 For development use `npm run dev`. Both build and dev preparation use `scripts/prepare-web-voice.mjs`. The project `.npmrc` skips the Node ONNX CUDA add-on download; the web app uses the WASM runtime, not CUDA. Node-specific optional dependencies may still appear in the install tree. A narrow `sharp@0.35.5` override updates Transformers’ Node image dependency past its upstream libvips/librsvg advisories; Sharp is not shipped in the browser bundle. The EPUB XML-parser override is also retained in the lockfile.
 
 ## Deploy to GitHub Pages
+
+The public reader is live at **https://krishnuni.github.io/hush/**. The [verified deployment](https://github.com/krishnuni/hush/actions/runs/40373280828) built and published commit `65fbbe5`; future pushes to `main` use the same workflow. To deploy your own checkout:
 
 1. In repository **Settings → Pages → Build and deployment**, choose **GitHub Actions** as the publishing source. Ensure the account/repository permits Pages hosting; public repositories are the straightforward portfolio path.
 2. Push the source to `main`, or run **Deploy Hush reader** from Actions.
@@ -152,7 +156,7 @@ HUSH_TEST_WEB_VOICE=1 npm run test:webkit
 
 The production browser test generates neural audio using the actual bundled worker/model. It measures non-silent PCM from Hush’s media stream, checks highlighting, pause/speed/seek, reloads with networking disabled, restores the cached listening position, and naturally enters the next EPUB chapter. It also asserts that no HTTP POST or external HTTP origin was used. It does not mock synthesis to establish this result. Unit tests use controlled media only for deterministic state-machine races.
 
-See [STATUS.md](docs/STATUS.md) for executed counts and limitations. Physical speakers/headphones, real iOS/Android hardware, battery/thermal performance and broad publisher/PDF compatibility are distinct checks. No naturalness score, mobile performance benchmark or completed remote deployment is inferred from a successful local browser run.
+See [STATUS.md](docs/STATUS.md) for executed counts and limitations. Physical speakers/headphones, real iOS/Android hardware, battery/thermal performance and broad publisher/PDF compatibility are distinct checks. Physical-device performance and audible quality remain separate from the automated browser and hosted smoke checks.
 
 ## Repository map
 
