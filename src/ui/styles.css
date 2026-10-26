@@ -2039,3 +2039,25 @@ input[type='range'] {
   border-radius: 2px;
   mix-blend-mode: multiply;
 }
+.browser-voice-setup {
+  margin: 20px 0;
+  padding: 16px 0;
+  border-block: 1px solid var(--line);
+}
+.browser-voice-setup progress {
+  width: 100%;
+  height: 6px;
+  accent-color: var(--accent);
+  margin: 12px 0;
+}
+.voice-setup-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 12px 0;
+}
+.voice-setup-actions .primary {
+  width: auto;
+  font-size: 13px;
+}
