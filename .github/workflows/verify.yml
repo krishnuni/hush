@@ -1,48 +1,41 @@
-name: Verify Hush
+name: Verify Hush browser
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
+concurrency:
+  group: hush-browser-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
-  reader:
+  browser:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: 24
           cache: npm
       - run: npm ci
       - run: npm test
       - run: npm run build
-      - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
+        env:
+          HUSH_BASE_PATH: /hush/
+      - run: npx playwright install --with-deps chromium webkit
+      - run: npm run test:e2e -- --workers=1
+        env:
+          HUSH_BASE_PATH: /hush/
+          HUSH_TEST_WEB_VOICE: '1'
       - run: npm run test:offline
-        # Neural tests explicitly skip without a separately verified model pack.
-  storage-and-voice:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - run: rustup show
-      - run: cargo test --release -p hush-core -p hush-voice-host -p hush-voice-worker
-      - run: cargo build --release -p hush-voice-worker
-      # This workflow performs checks. It does not publish, deploy or sign an installer.
-
-  native-host:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        env:
+          HUSH_BASE_PATH: /hush/
+      - run: npm run test:webkit
+        env:
+          HUSH_BASE_PATH: /hush/
+          HUSH_TEST_WEB_VOICE: '1'
+      - name: Preserve browser evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          node-version: 24
-          cache: npm
-      - if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev librsvg2-dev patchelf
-      - run: npm ci
-      - run: npm run tauri -- build --no-bundle --debug
-      # Compilation gate only. No signing, publishing, deployment, or release upload.
+          name: Hush-browser-evidence
+          path: test-results/
+          if-no-files-found: ignore

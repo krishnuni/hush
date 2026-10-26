@@ -31,8 +31,9 @@ jobs:
           HUSH_BASE_PATH: ${{ steps.pages.outputs.base_path }}/
       - run: npx playwright install --with-deps chromium
       - name: Verify reader flows at the deployed path
-        run: npm run test:e2e
+        run: npm run test:e2e -- --workers=1
         env:
+          HUSH_TEST_WEB_VOICE: "1"
           HUSH_BASE_PATH: ${{ steps.pages.outputs.base_path }}/
       - name: Verify offline EPUB and PDF at the deployed path
         run: npm run test:offline
