@@ -33,6 +33,7 @@ export function useNarration(
   return {
     ...snapshot,
     start: narrator.start,
+    unlock: narrator.unlock,
     toggle: narrator.toggle,
     stop: narrator.stop,
     previous: narrator.previous,

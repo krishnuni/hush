@@ -55,6 +55,7 @@ import { stableHash } from '../domain/sentences';
 import { audioCache } from '../audio/cache';
 import { Appearance } from './Appearance';
 import { IconButton } from './IconButton';
+import { BrowserVoicePanel } from './BrowserVoicePanel';
 
 type Panel = 'contents' | 'appearance' | 'bookmarks' | 'pdf-text' | null;
 const EpubReader = lazy(() =>
@@ -88,7 +89,7 @@ export function App() {
   const [pdfText, setPdfText] = useState('');
   const [narrationStatus, setNarrationStatus] = useState<NarrationStatus>({
     available: false,
-    engine: 'Pocket TTS',
+    engine: repository.kind === 'browser' ? 'Kokoro · browser neural voice' : 'Pocket TTS',
   });
   const [editing, setEditing] = useState<BookEntry | null>(null);
   const [editTitle, setEditTitle] = useState('');
@@ -395,6 +396,11 @@ export function App() {
     }
   };
   const listen = async () => {
+    narration.unlock();
+    if (!location) {
+      setNotice('Your book is still opening. Listen will be ready in a moment.');
+      return;
+    }
     const request = ++narrationRequest.current;
     const bookId = activeId;
     if (['playing', 'paused', 'buffering'].includes(narration.state)) {
@@ -921,7 +927,7 @@ export function App() {
                 <ChevronLeft size={20} />
               </IconButton>
               <span className="page-label">{location?.pageLabel}</span>
-              <button className="listen-button" onClick={listen}>
+              <button className="listen-button" onClick={listen} disabled={!location}>
                 <Headphones size={16} />
                 Listen
               </button>
@@ -1045,7 +1051,7 @@ export function App() {
         <p className="settings-lead">
           Your books stay on your device.
           <br />
-          Local narration is a separate, optional part of the room.
+          Enable a neural voice to listen here, on your device.
         </p>
         <div className="voice-status">
           <Headphones size={28} />
@@ -1056,8 +1062,11 @@ export function App() {
         </div>
         <p className="setup-explanation">
           {narrationStatus.reason ??
-            'The neural voice is connected. This development integration still needs audible output and synchronisation verification.'}
+            'Narration runs locally, with sentence tracking and saved listening positions.'}
         </p>
+        {repository.kind === 'browser' && (
+          <BrowserVoicePanel onStatus={setNarrationStatus} onStop={narration.stop} />
+        )}
         <p className="settings-meta">
           {repository.kind === 'native'
             ? 'Your books are kept as private copies on this computer.'
@@ -1088,7 +1097,14 @@ export function App() {
           Clear generated audio
         </button>
         <p className="settings-footnote">
-          Generated audio stays on this device. Clearing it keeps your books and saved places.
+          Generated audio stays on this device. Clearing it keeps your books and saved places.{' '}
+          <a
+            href={`${import.meta.env.BASE_URL}THIRD_PARTY_NOTICES.txt`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Open-source notices and component sources
+          </a>
         </p>
         <button className="primary" onClick={() => settings.current?.close()}>
           Back to your book

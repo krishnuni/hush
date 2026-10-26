@@ -1,41 +1,21 @@
-# Mobile implementation boundary
+# Desktop and mobile browser support
 
-The user's approval on 23 October 2026 added potential mobile functionality. This checkpoint interprets that as mobile-compatible structure and responsive reading layouts, with native mobile delivery subject to platform verification.
+The same GitHub Pages application runs in desktop and mobile browsers. No native Android/iOS build or desktop voice sidecar is required. React controls adapt to narrow layouts; EPUB.js/PDF.js, IndexedDB and the neural worker are shared.
 
-## Shared now
+## Browser behaviour
 
-React/TypeScript UI, theme/type controls, chapter/bookmark interactions, source-to-sentence mapping, locator schema, library metadata and SQLite core are separated from a desktop process model. CSS adapts to narrow viewports and accounts for safe areas. The Tauri host exposes a library entry point with `mobile_entry_point`.
+- Import via the browser file picker; originals are copied into this site's IndexedDB.
+- Enable the optional 115 MB voice while the page is open, then use Listen. Single-threaded WASM is the baseline and does not require WebGPU or SharedArrayBuffer.
+- The app activates one audio element during a tap and reuses it. If autoplay is refused, use the explicit Play control.
+- Reading and listening places are checkpointed on lifecycle events. Model and generated-audio caches support offline reopening after successful setup.
+- An installable manifest supports browser/home-screen installation where offered by the browser. It does not grant native background-audio privileges.
 
-## Still device-specific
+## Limits
 
-Android content URIs and persistent file access; iOS document-provider/security-scoped resource access; mobile suspension and termination; headphone/lock-screen controls; background audio sessions; memory/thermal budgets; native on-device model runtime; voice-pack storage; screen-reader and keyboard behaviour. None is represented as certified by a responsive browser layout.
+Mobile operating systems may suspend workers/audio when the app is backgrounded or the screen locks. Storage can be evicted. Low-memory devices may terminate a neural worker even though reading works. A quantised model file is 92 MB, but inference needs substantially more working memory. Continuous speech can consume battery and produce heat. No physical-device RAM, thermal or battery guarantee is made.
 
-The desktop synthesis sidecar will remain a desktop adapter. A future mobile engine implements the same sentence/job contract with an in-process/native inference API and OS audio session. It must not run a desktop executable or assume background webview timers remain alive.
+Current executed browser/viewport evidence is recorded in [STATUS.md](STATUS.md). Chromium with phone dimensions is a layout test; Linux Playwright WebKit is a browser-engine test. Neither alone certifies an actual iPhone or iPad, Bluetooth behaviour, lock-screen controls or every iOS version.
 
-## Gates
+## Device acceptance
 
-Phone-width Chromium flows pass for EPUB/PDF import, chapter/page navigation,
-bookmarks, typography, theme restoration, PDF zoom/offsets and shared neural
-controls. Offline EPUB/PDF reopening, exact audio-cache resume and automatic
-chapter narration also passed in this viewport.
-The phone viewport uses the local desktop worker; no phone inference benchmark
-or native mobile certification is implied. Native packaging is the next gate.
-
-Build an Android device prototype and, on macOS with Xcode, an iOS device
-prototype. Require local import, semantic position restoration after
-suspension/termination, reachable controls at large text sizes, and bounded
-memory. Neural inference and uninterrupted background playback have independent
-audible/device tests.
-
-Sources: [Tauri mobile prerequisites](https://v2.tauri.app/start/prerequisites/) and [mobile plugin development](https://v2.tauri.app/develop/plugins/develop-mobile/). These support the platform path, not an assertion that Hush has passed it.
-
-## Installable web reader
-
-The production build now includes a standalone app manifest and a versioned
-service worker for the app shell, reader engines and fonts. After successful
-installation/loading, local books can be reopened without a network. The shell
-cache deliberately excludes book text and inference responses; documents,
-checkpoints and generated clips retain their own local storage boundaries.
-This path shares actual reader code with desktop. It provides no mobile neural
-inference or background audio guarantee. Browser storage can be evicted by the
-OS; native document ownership and export/backup remain platform work.
+On physical iPhone/iPad and Android hardware: import EPUB/PDF; reflow at large text sizes; enable the voice over Wi-Fi; listen to several chapters; test headphone/volume controls; rotate; background/reopen; force-close/reopen; clear only generated audio; remove/re-enable the voice; verify bookmarks and saved places remain. Record sustained performance before making device-specific claims.

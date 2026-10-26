@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "An original, local-first literary reader for desktop, with a portable mobile interface.",
+  "description": "A browser-native, local-first EPUB/PDF reading room with on-device neural narration.",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
@@ -24,14 +24,19 @@
     "desktop:build:voice": "npm run voice:build && npm run voice:setup && npm run voice:stage && tauri build --config src-tauri/tauri.voice.conf.json",
     "test:offline": "playwright test --config playwright.offline.config.ts",
     "start": "node scripts/serve-preview.mjs",
-    "prebuild": "node scripts/collect-licenses.mjs"
+    "prebuild": "node scripts/prepare-web-voice.mjs && node scripts/collect-licenses.mjs",
+    "predev": "node scripts/prepare-web-voice.mjs",
+    "voice:web:prepare": "node scripts/prepare-web-voice.mjs",
+    "test:webkit": "playwright test --config playwright.webkit.config.ts"
   },
   "dependencies": {
+    "@huggingface/transformers": "3.8.1",
     "@tauri-apps/api": "2.12.4",
     "@tauri-apps/plugin-dialog": "^2.6.0",
     "dompurify": "^3.3.0",
     "epubjs": "0.3.93",
     "jszip": "^3.10.1",
+    "kokoro-js": "1.2.1",
     "lucide-react": "^0.577.0",
     "pdfjs-dist": "6.4.299",
     "react": "19.3.1",
@@ -40,6 +45,9 @@
   "overrides": {
     "epubjs": {
       "@xmldom/xmldom": "0.8.15"
+    },
+    "@huggingface/transformers": {
+      "sharp": "0.35.5"
     }
   },
   "devDependencies": {

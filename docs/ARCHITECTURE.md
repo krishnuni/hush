@@ -1,98 +1,127 @@
-# Hush implementation architecture
+# Hush browser architecture
 
-Original application code and literary visual system. React 19 and TypeScript form
-one shared interface. Tauri 2 owns native storage and trusted desktop process
-launch. EPUB.js and PDF.js remain isolated behind `ReaderHandle`; app UI does not
-inspect their internal DOMs or carry engine-specific navigation code.
+The primary application is a static React/TypeScript build for GitHub Pages.
+Import, document rendering, persistence, neural synthesis and playback execute
+in the visitor's browser on desktop and mobile. Node is a build/preview tool;
+there is no deployed Node/Rust/Python server. Tauri and the Pocket TTS process
+remain optional desktop adapters, outside the Pages execution path.
 
-## Documents and storage
+## Document boundary
 
-Imports validate supported format, archive paths, resource counts, declared and
-actual inflated sizes. EPUB scripts, event handlers and remote resources are
-sanitised before rendering. DRM and fixed-layout EPUB are rejected explicitly.
-The original managed file remains separate from its sanitized rendering copy.
-PDFs retain their page geometry and text layer; image-only pages have no OCR.
+`ReaderHandle` separates EPUB.js and PDF.js from the React controls. EPUB
+locators contain a CFI plus section/href context; PDF locators retain page,
+vertical offset, rotation and zoom. Percentages are presentation information.
+A PDF navigation promise resolves after rendering and offset restoration.
+Returning to the library flushes pending state before closing the reader.
 
-Browser storage uses a single IndexedDB transaction for book metadata and bytes.
-Desktop storage uses SQLite WAL with FULL synchronization and a single owner
-lock. A journal coordinates database intent with the managed filesystem copy:
+Imports validate format, paths, entry count, declared and actual inflated
+sizes. Limits are 50 MiB originals, 256 MiB expanded EPUB, 32 MiB resources,
+5,000 archive entries and 2,000 PDF pages. A sanitized rendering copy removes
+EPUB scripts, event handlers and remote resources. Fixed-layout EPUB and DRM
+are rejected. Original managed bytes remain separate and never overwrite a
+user's source file. Scanned PDFs have no OCR; extracted text order is exposed
+for review. The renderer still assembles a full bounded source buffer.
 
-1. `begin_import` validates metadata, identifier, hash, duplicate identity and size.
-2. Binary IPC sends ordered chunks of at most 1 MiB into a managed pending file.
-3. `finish_import` streams SHA-256 and signature checks, fsyncs the file, records
-   ready intent, renames it and commits metadata plus journal removal together.
-4. Startup finishes ready imports and rolls back incomplete transfers. Orphan
-   cleanup scans only UUID-named managed copies. User originals are untouched.
+## Browser storage and offline shell
 
-Range reads are also capped at 1 MiB and return raw binary responses. The current
-renderer still assembles a full source buffer, capped at 50 MiB. A PDF range data
-transport and incremental EPUB archive reader are future memory improvements;
-bounded IPC alone does not establish bounded total renderer memory.
+Book metadata and original bytes are committed together in IndexedDB. Settings,
+bookmarks, semantic positions and independent listening checkpoints remain
+local to this origin/browser/device. There is no book upload endpoint or sync.
 
-`BookEntry` records immutable source identity, bibliographic metadata, reading
-status, a reader locator, bookmarks and an independent listening checkpoint.
-EPUB locations are CFIs with chapter/href context. PDF locations retain page,
-zoom, rotation and vertical offset. PDF `goTo` resolves after canvas and text
-rendering and restoration, rather than immediately after a React state change.
-Reader updates are debounced; library return flushes and awaits pending saves.
+The build creates a service worker with a content-versioned, app-path-scoped
+shell cache. It includes HTML, scripts, styles, fonts, PDF worker and the small
+voice manifest. The 115 MB voice assets are excluded from initial precaching.
+The neural JavaScript/phonemiser worker bundle is part of the shell so it can
+start offline after voice installation. Model initialization remains lazy.
 
-## Speech preparation and playback
+A second app-path/version-scoped Cache Storage bucket holds voice assets.
+Settings installs them explicitly, verifies restricted paths, exact byte counts
+and SHA-256 digests, and writes the installed manifest last. Cancellation can
+reuse completed verified files. Removing the voice terminates its worker and
+deletes only that voice cache. Browser eviction and site-data removal can erase
+any of these stores; originals should be retained outside the application.
 
-`epubPassage` maps normalized UTF-16 offsets back to real DOM ranges. Nested
-quotations and lists are divided into source-ordered runs to avoid lost or
-repeated prose. `speechSpans` bounds inference to 420 Unicode code points per
-job without splitting surrogate pairs. Several chunks of one long sentence
-share its sentence highlight. PDF speech offsets align with extracted text
-items; the user can review reading order before starting narration.
+## Browser neural execution
 
-`Narrator` owns the real HTML media element, playback clock, cancellation epoch,
-current source sentence and chapter transition. React subscribes to its state;
-it does not simulate speech events. `ClipProvider` permits one active inference
-and one look-ahead clip. A foreground seek supersedes unrelated background work;
-an already prepared matching clip is adopted without duplicate inference.
+`browserVoice.ts` handles setup, capability checks, progress, cancellation,
+worker RPC, errors and timeouts. `browser.worker.ts` owns one Kokoro model and
+fixed Heart voice. Transformers.js loads the q8 model through ONNX Runtime Web
+using single-thread WASM, with remote model access disabled. Runtime, tokenizer,
+voice and model are served from this site's `narration/` path. Pinning/staging
+happens at build time in `prepare-web-voice.mjs`; generated binaries stay out
+of git. Browser inference performs no text POST to a remote service.
 
-At a chapter boundary the reader adapter can load the next passage without
-changing the visible page. Navigation happens when its audio actually plays.
-Empty PDF pages and empty linear EPUB sections are skipped. Stop, manual
-navigation and book changes invalidate late work and revoke playback URLs.
+Single-thread WASM avoids requiring WebGPU or SharedArrayBuffer/COOP/COEP,
+which is appropriate for normal Pages hosting. A dedicated worker keeps the
+inference kernel off the UI thread. It does not make inference cost-free:
+low-memory phones may terminate the worker/tab and slow devices can produce
+gaps. There is one in-flight computation and one replaceable queued seek.
+Cancellation rejects stale results; an already running kernel completes before
+the next job. Voice removal or a worker failure terminates that process.
 
-A separate disposable IndexedDB audio store has a 128 MiB / 192 clip LRU budget,
-with a 5 MB clip limit. Cache metadata and audio bytes occupy separate stores,
-so eviction does not load every waveform into memory. Keys include text and a
-SHA-256 fingerprint of runtime protocol, configuration, model, tokenizer and
-voice. Exact in-sentence resume requires the identical saved audio clip. If it
-is absent or the engine changed, Hush restarts at the source sentence and tells
-the reader, rather than applying old seconds to a new waveform.
+Kokoro's normalization and phonemisation remain intact. Hush supplies a pinned
+same-origin voice rather than allowing an implicit external voice download.
+Chunks are bounded at 420 Unicode code points. Token sequences beyond the
+model limit fail visibly instead of being silently truncated. The engine key
+includes model revision, voice and runtime; changing these requires a version
+update so prior cached audio is not mistaken for the same waveform.
 
-Desktop synthesis uses a private process and bounded JSON pipes. Only trusted
-application configuration supplies worker/model paths. The process never opens
-an inference HTTP server or receives document-supplied filesystem arguments.
-Two automatic reconnect attempts are allowed after a worker exit; interrupted
-book text is not automatically replayed. Browser development uses a loopback,
-same-origin bridge. A production static build has no neural inference adapter.
+## Source mapping, media and continuity
 
-## Mobile and offline behavior
+`epubPassage` maps normalized UTF-16 offsets back to DOM ranges, preserving
+source order across quotations, lists and inline elements. Long sentences can
+span several bounded clips while sharing one sentence highlight. PDF speech
+offsets align with extracted text items; complex layout remains a reading-order
+limitation rather than an invented OCR capability.
 
-The responsive interface, repository contract and reader adapters are shared.
-The production web build has an installable manifest and versioned service
-worker shell cache. Only packaged app assets and fonts are cached; publication
-and generated audio storage remain separate. The shell can reopen local books
-after the first successful online load. It does not provide mobile on-device
-neural inference, background audio sessions or cross-device synchronization.
+`Narrator` owns a reusable HTML audio element, media clock, cancellation epoch,
+source sentence and natural chapter transitions. A user gesture activates the
+player before asynchronous model work. If autoplay is still refused, the user
+gets a paused state and an explicit Play control. React observes this controller
+rather than simulating speech events. Highlighting begins on real playback.
 
-The Tauri Rust entry point is mobile compatible; desktop process execution is
-excluded with target configuration. Android/iOS require real SDK projects,
-document-provider access, OS lifecycle/audio integration and device tests.
-Phone-width Chromium tests are evidence for responsive behavior only.
+`ClipProvider` admits one active request and one look-ahead clip. Seeking adopts
+matching prepared audio and supersedes unrelated work. The adapter can prepare
+the next passage without changing the visible page; navigation happens when its
+audio starts. Empty passages are skipped. Stop, manual navigation and book
+changes invalidate late results and revoke playback URLs.
 
-## Verification and release
+The disposable audio IndexedDB has a 128 MiB / 192 clip LRU budget and a 5 MB
+clip limit. Metadata and bytes are separate stores. Checkpoints contain source
+identity, text hash, engine fingerprint, clip key, seconds, speed and volume.
+Exact in-sentence resume requires the identical saved clip. If it was evicted
+or the engine changed, resume starts at its source sentence with an explanation.
+Old seconds are never applied to a newly generated waveform.
 
-Unit tests cover document bounds, source mapping, persistent state, cache
-identity, cancellation and playback state. Browser tests use actual EPUB/PDF
-engines and, when opted in, the real local neural worker and real media output.
-Separate production tests disable networking after shell installation. Rust
-checks cover import crash boundaries, source identity and bounded transfer.
-CI includes a native desktop compilation gate without any publish action.
+## Mobile browser boundary
 
-See STATUS.md for executed results and outstanding gates. No signing, public
-hosting, repository push, installer distribution or deployment is implied.
+The same static artifact serves desktop and phone layouts. It has touch-sized
+controls, safe-area handling and an installable manifest. Neural inference runs
+on the phone itself, subject to that phone's browser capabilities and resources.
+A responsive Chromium viewport does not certify Safari or physical iOS/Android.
+Background audio, lock-screen controls, suspension, OS storage eviction and
+battery/thermal behavior require separate device validation; they are not
+promised by the web manifest. See MOBILE.md and STATUS.md.
+
+## Optional native adapter
+
+The desktop repository uses SQLite WAL/FULL synchronization, a library owner
+lock and an import intent journal. Ordered binary IPC writes and reads are
+capped at 1 MiB. Finishing an import verifies SHA-256 and signature, syncs the
+pending file, renames it and commits metadata. Startup completes ready imports
+and discards incomplete transfers without touching user originals.
+
+Desktop Pocket TTS uses private bounded process pipes and trusted resource
+configuration. It does not expose a hosted inference server. A development-only
+loopback bridge supports its integration tests and is absent from production
+Pages builds. Historical setup is in DESKTOP-NARRATION.md.
+
+## Verification
+
+Unit tests exercise import bounds, mapping, storage, audio identity and race
+conditions. Production browser tests use actual EPUB/PDF engines. The opt-in
+web-voice test runs the real static WASM worker, measures non-silent media PCM,
+checks pause/seek/rate/highlighting, reloads offline and naturally continues to
+the next chapter. Separate tests reopen EPUB and PDF without networking.
+Chromium and WebKit CI paths are defined; executed evidence and unresolved
+gates are recorded in STATUS.md rather than inferred from configuration.

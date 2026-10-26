@@ -2,6 +2,7 @@ import type { Plugin } from 'vite';
 import { createHash } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { voiceCacheName } from '../src/audio/browserProtocol.ts';
 /** Cache only the built application shell. Books and speech remain in their own local stores. */
 export function offlineShell(): Plugin {
   let base = '/';
@@ -20,8 +21,14 @@ export function offlineShell(): Plugin {
       });
       const files = publicFiles
         .filter((file) => file.isFile())
-        .map((file) => resolve(file.parentPath, file.name));
-      const assets = Object.keys(bundle).filter((name) => !name.endsWith('.map'));
+        .map((file) => resolve(file.parentPath, file.name))
+        .filter(
+          (file) =>
+            !file.includes(resolve('public/narration') + '/') || file.endsWith('/manifest.json'),
+        );
+      const assets = Object.keys(bundle).filter(
+        (name) => !name.endsWith('.map') && !name.endsWith('.wasm'),
+      );
       const hash = createHash('sha256');
       hash.update(assets.join('\n'));
       for (const file of files) hash.update(await readFile(file));
@@ -35,10 +42,10 @@ export function offlineShell(): Plugin {
           (file) => base + file.slice(resolve('public').length + 1).replaceAll('\\', '/'),
         ),
       ];
-      const source = `const CACHE=${JSON.stringify(version)},PREFIX=${JSON.stringify(prefix)},BASE=${JSON.stringify(base)},URLS=${JSON.stringify(urls)};
+      const source = `const CACHE=${JSON.stringify(version)},PREFIX=${JSON.stringify(prefix)},BASE=${JSON.stringify(base)},VOICE=${JSON.stringify(voiceCacheName(base))},URLS=${JSON.stringify(urls)};
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(URLS))));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith(PREFIX)&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
-self.addEventListener('fetch',event=>{const url=new URL(event.request.url);if(event.request.method!=='GET'||url.origin!==self.location.origin||!url.pathname.startsWith(BASE))return;if(event.request.mode==='navigate'){event.respondWith(fetch(event.request).catch(()=>caches.open(CACHE).then(cache=>cache.match(BASE))));return;}if(URLS.includes(url.pathname))event.respondWith(caches.open(CACHE).then(cache=>cache.match(url.pathname)).then(cached=>cached||fetch(event.request)));});`;
+self.addEventListener('fetch',event=>{const url=new URL(event.request.url);if(event.request.method!=='GET'||url.origin!==self.location.origin||!url.pathname.startsWith(BASE))return;if(url.pathname.startsWith(BASE+'narration/')&&!url.pathname.endsWith('/manifest.json')){event.respondWith(caches.open(VOICE).then(cache=>cache.match(event.request)).then(cached=>cached||fetch(event.request)));return;}if(event.request.mode==='navigate'){event.respondWith(fetch(event.request).catch(()=>caches.open(CACHE).then(cache=>cache.match(BASE))));return;}if(URLS.includes(url.pathname))event.respondWith(caches.open(CACHE).then(cache=>cache.match(url.pathname)).then(cached=>cached||fetch(event.request)));});`;
       this.emitFile({ type: 'asset', fileName: 'sw.js', source });
     },
   };

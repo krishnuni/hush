@@ -1,0 +1,33 @@
+name: Verify optional desktop
+on: [workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  storage-and-voice:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - run: rustup show
+      - run: cargo test --release -p hush-core -p hush-voice-host -p hush-voice-worker
+      - run: cargo build --release -p hush-voice-worker
+      # This workflow performs checks. It does not publish, deploy or sign an installer.
+
+  native-host:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: npm
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev librsvg2-dev patchelf
+      - run: npm ci
+      - run: npm run tauri -- build --no-bundle --debug
+      # Compilation gate only. No signing, publishing, deployment, or release upload.

@@ -1,48 +1,51 @@
-# MVP acceptance and release gates
+# Browser release acceptance criteria
 
-These are measurable acceptance criteria, not promises that every gate has passed.
-Executed evidence belongs in STATUS.md. Android/iOS, OCR, DRM removal, sync,
-annotations, RSVP and intelligent explanations are outside the current MVP.
+These are measurable criteria, not a claim that every gate has passed. Executed
+results and exact engine/device boundaries are recorded in STATUS.md. GitHub
+Pages is the primary target; Tauri packaging is an optional separate target.
 
-| Milestone | Acceptance criterion | Verification |
+| Area | Criterion | Verification |
 | --- | --- | --- |
-| Product and identity | Original library/reader, quiet paper/night themes, consistent type/spacing, usable phone layout | Screen review, contrast/focus checks, viewport overflow assertions |
-| Import/library | Valid EPUB/PDF imports; search/sort; immutable originals; duplicate/corrupt inputs leave no partial book | Import unit cases, real browser imports, Rust hash/journal tests |
-| Documents | Chapters, prose, emphasis and illustrations render; PDF pages/text survive zoom/rotation | Real EPUB/PDF engines; fixture corpus; publisher/device compatibility matrix |
-| Saved positions | Reopen the same CFI or PDF page/vertical offset after navigation/restart/reflow | Browser reopen, bookmark, typography and PDF offset tests; native lifecycle gate |
-| Neural narration | Real local model produces audible, understandable output in the app | Real inference plus media PCM checks; physical listening remains mandatory |
-| Audio continuity | Media-clock pause/seek/rate/volume; no stale audio after navigation; exact cache resume or explicit source fallback; cross-chapter continuation | Unit race tests, actual worker tests, natural media-ended browser transitions |
-| Reliability/accessibility | Recoverable document/audio errors; reachable labelled controls; bounded imports/cache/jobs; no critical keyboard traps | Fault tests, screen-reader review, sustained CPU/RSS and lifecycle tests |
-| Packaging | Reproducible native build; optional attributed voice pack; clean install/uninstall/restart | Native CI compilation; Windows clean-machine test; signing/distribution approval |
+| Static hosting | One build works under `/` and a Pages project path without server endpoints, custom headers or desktop helpers | Subpath production build and hosted smoke test |
+| Import/library | EPUB/PDF import, duplicates, search/sort, saved originals and no partial state after failure | Unit transactions and real browser imports |
+| Reader | Reflowable EPUB and selectable PDF render; navigation, themes and typography work on desktop/phone | Actual engines, corpus, overflow/focus checks |
+| Saved state | Restore CFI or PDF page/offset/zoom; reading/listening checkpoints remain distinct | Reopen, bookmark, reflow and audio-cache tests |
+| Neural execution | Explicit voice setup; actual local WASM output; no remote text inference request | Real production worker, non-silent media PCM and network assertions |
+| Audio controls | Pause, sentence seek, speed/volume, highlight, stale-result isolation, exact cache resume/fallback and chapter continuation | Race unit tests and actual media-ended transitions |
+| Offline | Shell, imported EPUB/PDF and installed voice reopen without networking | Separate fresh-page offline reader and neural tests |
+| Recovery | Bounded jobs/cache/imports, integrity failure/retry/cancel feedback, removable voice | Manifest validation, fault tests and real storage/memory device checks |
+| Mobile | Usable touch layout and browser audio on physical iOS/Android | Viewport automation plus real Safari/Chrome hardware gate |
+| Accessibility | Labelled controls, keyboard navigation, visible focus and screen-reader usability | Automated assertions plus manual assistive-technology review |
+| Documentation | Reproducible setup/deploy commands, rationale, privacy, licences and honest evidence | README/source/workflow review |
 
-## Compatibility corpus before release
+## Compatibility corpus
 
-- Reflowable EPUB 2/3 with multiple spine sections, nested lists, quotations,
-  inline emphasis, images, relative links, footnotes and embedded fonts.
-- Text PDFs with mixed fonts, rotated pages, outlines and encryption/password
-  variants; multicolumn PDFs must expose reading-order limits accurately.
-- Corrupt ZIP/XML/PDF, malformed metadata, missing resources, unsupported DRM,
-  hostile remote/script content, expansion bombs and interrupted imports.
-- Long Unicode sentences, punctuation, abbreviations, dialogue, numbers, empty
-  chapters/pages, missing/corrupt cache, changed model/voice and worker crashes.
-- Windows WebView2, Linux WebKitGTK and a macOS WebView; keyboard-only use and
-  at least one real screen reader. Chromium is not a substitute for these engines.
+- Reflowable EPUB 2/3 with multiple sections, nested lists, quotations, inline
+  emphasis, images, relative links, footnotes and embedded fonts.
+- Text PDFs with mixed fonts, rotated pages, outlines, password variants and
+  multicolumn reading-order limitations; scanned PDFs must not suggest OCR.
+- Corrupt ZIP/XML/PDF, missing resources, unsupported DRM, hostile remote/script
+  content, expansion bombs and interrupted imports.
+- Unicode, punctuation, dialogue, numbers, long/empty passages, missing/corrupt
+  audio, changed engine and low-memory worker failure.
+- Chromium and WebKit automation; actual Safari/iOS and Chrome/Android;
+  desktop keyboard use and at least one real screen reader.
 
-## Performance expectations to measure
+## Resource/performance measurement
 
-Target an ordinary modern 4-core desktop with 8 GB RAM; no dedicated GPU should
-be required for the chosen CPU inference path. The current earlier short probe
-used roughly 645 MiB worker peak RSS. That is an observation on one Linux VM,
-not a minimum-memory or thermal guarantee. The optional pack is roughly 226 MB.
+The browser voice pack is 114,527,513 bytes, including the 92,361,116-byte q8
+model. These are transfer/storage sizes, not RAM requirements. Single-thread
+WASM is the baseline; no dedicated GPU or cross-origin-isolation headers are
+required. Exact minimum device memory has not been established.
 
-Measure cold/warm model load, time to first sound, generation/real-time ratio,
-cache hit, sustained worker/renderer RSS, CPU use and cancellation latency.
-Require at most one inference and one future clip; cache limits are 128 MiB and
-192 clips. Current source/expansion limits are safety bounds, not demonstrated
-worst-case performance results. Benchmark long EPUBs and image-heavy PDFs near
-those bounds before increasing limits or declaring large-document readiness.
+Measure cold/warm model initialization, time to first sound, generation versus
+playback duration, cache hit, peak memory, sustained CPU and cancellation
+latency. The pipeline permits one active computation plus one replaceable
+pending seek; clip storage is capped at 128 MiB and 192 clips. Test long EPUBs
+and image-heavy PDFs near the documented bounds before declaring large-document
+readiness. Physical audio review should cover gaps, clipping and pronunciation.
 
-Physical audio review must include gaps, clipping, pronunciation and naturalness.
-Device mobile testing must separately include background audio, suspension,
-termination, low memory, battery/thermal behavior and document-provider access.
-Do not infer them from a responsive browser viewport or desktop-hosted narration.
+Mobile checks additionally cover tab suspension, screen lock, storage eviction,
+low memory, audio route changes, battery and thermal behavior. Guaranteed
+background/lock-screen audio, cloud sync, OCR, DRM removal and native mobile
+packaging are outside this browser release.
