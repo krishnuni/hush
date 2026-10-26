@@ -1,4 +1,5 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
+import { browserVoice } from '../audio/browserVoice';
 import {
   boundPreferences,
   DEFAULT_PREFERENCES,
@@ -105,18 +106,17 @@ class BrowserRepository implements LibraryRepository {
     if (import.meta.env.DEV) {
       try {
         const response = await fetch('/__hush/voice/status');
-        if (response.ok) return await response.json();
+        if (response.ok) {
+          const status = await response.json();
+          if (status.available) return status;
+        }
       } catch {}
     }
-    return {
-      available: false,
-      engine: 'Pocket TTS',
-      reason:
-        'Local neural narration needs the desktop engine. This browser build does not substitute a system voice.',
-    };
+    return browserVoice.status();
   }
   async synthesize(text: string, signal: AbortSignal): Promise<Blob> {
-    if (!import.meta.env.DEV) throw new Error('Open the desktop edition to use local narration.');
+    if (!import.meta.env.DEV || (await this.narrationStatus()).engine !== 'Pocket TTS')
+      return browserVoice.synthesize(text, signal);
     const response = await fetch('/__hush/voice/synthesize', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Hush-Voice': '1' },
