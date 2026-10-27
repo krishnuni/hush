@@ -27,7 +27,8 @@
     "prebuild": "node scripts/prepare-web-voice.mjs && node scripts/collect-licenses.mjs",
     "predev": "node scripts/prepare-web-voice.mjs",
     "voice:web:prepare": "node scripts/prepare-web-voice.mjs",
-    "test:webkit": "playwright test --config playwright.webkit.config.ts"
+    "test:webkit": "playwright test --config playwright.webkit.config.ts",
+    "capture:interface": "node scripts/capture-interface.mjs"
   },
   "dependencies": {
     "@huggingface/transformers": "3.8.1",
@@ -51,6 +52,7 @@
     }
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@playwright/test": "1.64.1",
     "@tauri-apps/cli": "^2.12.0",
     "@types/node": "^24.0.0",

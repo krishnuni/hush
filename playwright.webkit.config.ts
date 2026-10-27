@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 const base = process.env.HUSH_BASE_PATH ?? '/';
 export default defineConfig({
   testDir: './tests',
-  testMatch: ['reader.spec.ts', 'web-voice.spec.ts'],
+  testMatch: ['reader.spec.ts', 'web-voice.spec.ts', 'interface.spec.ts'],
   outputDir: 'test-results/webkit',
   timeout: 180000,
   expect: { timeout: 30000 },
