@@ -99,6 +99,9 @@ test('PDF text, page navigation, zoom and page restoration', async ({ page }) =>
     )
     .toBeGreaterThan(1);
   await page.getByRole('button', { name: 'Library', exact: true }).click();
+  // Closing includes an asynchronous IndexedDB checkpoint. Keep the immediate
+  // rotation-to-close action, then wait for its visible completion before reload.
+  await expect(page.getByRole('heading', { name: 'Your reading room.' })).toBeVisible();
   await page.reload();
   await page.getByRole('button', { name: 'Continue reading-test', exact: true }).click();
   await expect(page.getByRole('contentinfo')).toContainText('2 of 3');
