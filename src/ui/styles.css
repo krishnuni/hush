@@ -1997,8 +1997,9 @@ input[type='range'] {
 /* Mobile is its own reading object: a compact masthead, reachable tools and sheets. */
 @media (min-width: 1700px) {
   .library-page {
-    max-width: 1600px;
-    padding-inline: 100px;
+    width: min(1760px, 100%);
+    max-width: none;
+    padding-inline: 80px;
   }
   .library-opening {
     grid-template-columns: 1fr 1.65fr;
