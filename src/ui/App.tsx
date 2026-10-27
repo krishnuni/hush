@@ -9,35 +9,28 @@ import {
 } from 'react';
 import {
   ArrowLeft,
-  ArrowRight,
-  BookOpen,
   Bookmark,
+  BookOpen,
   Check,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Headphones,
-  Import,
-  Library,
   List,
   Maximize2,
   Minimize2,
-  MoreHorizontal,
-  Pause,
-  Play,
-  Plus,
-  Search,
-  Settings,
-  SkipBack,
-  SkipForward,
   SlidersHorizontal,
   Trash2,
-  Volume2,
   X,
 } from 'lucide-react';
+import { LibraryView } from './LibraryView';
+import { NarrationDock } from './NarrationDock';
+import { ReaderPanel } from './ReaderPanel';
+import { FoldMark } from './Brand';
+import { BookCover } from './BookCover';
+import { changeScene } from './transition';
 import { repository } from '../platform/repository';
 import { inspectDocument } from '../documents/import';
-import { createSampleBook, coverSvg, SAMPLE_BOOKS } from '../documents/samples';
+import { createSampleBook, SAMPLE_BOOKS } from '../documents/samples';
 import {
   boundPreferences,
   DEFAULT_PREFERENCES,
@@ -65,8 +58,6 @@ const PdfReader = lazy(() =>
   import('../readers/PdfReader').then((module) => ({ default: module.PdfReader })),
 );
 const friendly = (error: unknown) => (error instanceof Error ? error.message : String(error));
-const percent = (book: BookEntry) =>
-  book.locator?.progress === undefined ? null : Math.round(book.locator.progress * 100);
 const lastOpened = (a: BookEntry, b: BookEntry) =>
   (b.openedAt ?? b.addedAt) - (a.openedAt ?? a.addedAt);
 
@@ -209,10 +200,10 @@ export function App() {
       ?.setAttribute(
         'content',
         preferences.theme === 'night'
-          ? '#1c211f'
+          ? '#20211f'
           : preferences.theme === 'warm'
-            ? '#fcf8ef'
-            : '#ffffff',
+            ? '#f6f3eb'
+            : '#fffefa',
       );
     if (!ready) return;
     void repository.setPreferences(preferences).catch((e) => setError(friendly(e)));
@@ -242,22 +233,22 @@ export function App() {
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
-      if (
-        target.matches('input,textarea,select') ||
-        target.isContentEditable ||
-        settings.current?.open ||
-        editDialog.current?.open
-      )
-        return;
+      if (document.querySelector('dialog[open]')) return;
       if (event.key === 'Escape') {
         setPanel(null);
         setFocus(false);
         return;
       }
-      if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+      if (!activeId && (event.ctrlKey || event.metaKey) && event.key === 'k') {
         event.preventDefault();
         searchInput.current?.focus();
+        return;
       }
+      if (
+        target.closest('input,textarea,select,button,a,[contenteditable="true"]') ||
+        target.isContentEditable
+      )
+        return;
       if (activeId && event.key === 'ArrowRight') {
         event.preventDefault();
         turnPage('next');
@@ -282,21 +273,29 @@ export function App() {
     }
   }, [editing]);
 
-  const openBook = (book: BookEntry) => {
+  const pendingListen = useRef<string | null>(null);
+  const openBook = (book: BookEntry, startListening = false, origin?: HTMLElement) => {
+    pendingListen.current = startListening ? book.id : null;
+    if (startListening) narration.unlock();
     narrationRequest.current++;
     flushPosition();
     narration.stop();
-    setLocation(null);
-    setChapters([]);
-    setPdfText('');
-    setPanel(null);
-    setFocus(false);
-    setPreferences(boundPreferences(book.preferences ?? prefsRef.current));
-    setActiveId(book.id);
-    patchBook(book.id, {
-      openedAt: Date.now(),
-      status: book.status === 'finished' ? 'finished' : 'reading',
-    });
+    const jacket =
+      origin?.querySelector<HTMLElement>('.cover-object') ??
+      origin?.closest('.featured-book')?.querySelector<HTMLElement>('.cover-object');
+    changeScene(() => {
+      setLocation(null);
+      setChapters([]);
+      setPdfText('');
+      setPanel(null);
+      setFocus(false);
+      setPreferences(boundPreferences(book.preferences ?? prefsRef.current));
+      setActiveId(book.id);
+      patchBook(book.id, {
+        openedAt: Date.now(),
+        status: book.status === 'finished' ? 'finished' : 'reading',
+      });
+    }, jacket);
   };
   const closeBook = async () => {
     narrationRequest.current++;
@@ -306,9 +305,11 @@ export function App() {
     try {
       await saves.current;
       await repository.setPreferences(preferences);
-      setActiveId(null);
-      setPanel(null);
-      setFocus(false);
+      changeScene(() => {
+        setActiveId(null);
+        setPanel(null);
+        setFocus(false);
+      });
     } catch (e) {
       setError(`Save failed: ${friendly(e)}`);
     }
@@ -428,7 +429,15 @@ export function App() {
       : -1;
     narrationBook.current = activeId;
     narration.start(sentences, status.engineKey, index >= 0 ? saved : undefined);
+    if (active?.format === 'pdf') setPanel(null);
   };
+  useEffect(() => {
+    if (activeId && location && pendingListen.current === activeId) {
+      pendingListen.current = null;
+      void listen();
+    }
+  }, [activeId, location]);
+
   const filtered = books
     .filter(
       (book) =>
@@ -470,262 +479,46 @@ export function App() {
         }}
       />
       {!active ? (
-        <>
-          <aside className="library-rail">
-            <a className="wordmark" href="#" onClick={(e) => e.preventDefault()}>
-              hush<span>Your reading room</span>
-            </a>
-            <nav aria-label="Library filters">
-              {[
-                ['all', Library, 'Library'],
-                ['reading', BookOpen, 'Reading'],
-                ['finished', Check, 'Finished'],
-              ].map(([key, Icon, label]) => {
-                const I = Icon as typeof Library;
-                return (
-                  <button
-                    key={String(key)}
-                    className={filter === key ? 'selected' : ''}
-                    onClick={() => setFilter(key as typeof filter)}
-                    aria-current={filter === key ? 'page' : undefined}
-                  >
-                    <I size={18} />
-                    <span>{String(label)}</span>
-                  </button>
-                );
-              })}
-            </nav>
-            <div className="rail-bottom">
-              <p>Stored on this {repository.kind === 'native' ? 'computer' : 'browser'}</p>
-              <button onClick={() => settings.current?.showModal()}>
-                <Settings size={17} />
-                Settings
-              </button>
-            </div>
-          </aside>
-          <main className="library-main">
-            <header className="library-header">
-              <div>
-                <p className="eyebrow mobile-brand">HUSH · YOUR READING ROOM</p>
-                <h1>Your reading room.</h1>
-                <p>A little space for the next chapter.</p>
-              </div>
-              <div className="library-tools">
-                <label className="search-field">
-                  <Search size={16} />
-                  <input
-                    ref={searchInput}
-                    aria-label="Search your books"
-                    placeholder="Search your books"
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                  />
-                  <kbd>⌘ K</kbd>
-                </label>
-                <button
-                  className="primary import-button"
-                  onClick={() => fileInput.current?.click()}
-                  disabled={!!importing}
-                >
-                  <Plus size={16} />
-                  <span>Import books</span>
-                </button>
-                <IconButton label="Library settings" onClick={() => settings.current?.showModal()}>
-                  <Settings size={18} />
-                </IconButton>
-              </div>
-            </header>
-            <nav className="mobile-library-filters" aria-label="Library filters">
-              {(
-                [
-                  ['all', 'All books'],
-                  ['reading', 'Reading'],
-                  ['finished', 'Finished'],
-                ] as const
-              ).map(([key, label]) => (
-                <button key={key} aria-pressed={filter === key} onClick={() => setFilter(key)}>
-                  {label}
-                </button>
-              ))}
-            </nav>
-            {importing && (
-              <div className="import-status" role="status">
-                <span className="loading-dot" />
-                Importing {importing}…
-              </div>
-            )}
-            {!ready ? (
-              <div className="empty-library" role="status">
-                <span className="loading-dot" />
-                Opening your reading room…
-              </div>
-            ) : books.length === 0 ? (
-              <section className="empty-library">
-                <div className="empty-illustration" aria-hidden="true">
-                  <BookOpen strokeWidth={0.7} size={90} />
-                  <span />
-                  <span />
-                  <span />
-                </div>
-                <p className="eyebrow">A PLACE TO BEGIN</p>
-                <h2>Make room for a good book.</h2>
-                <p>
-                  Bring an EPUB or PDF into Hush.
-                  <br />
-                  Your library stays right here, on your device.
-                </p>
-                <button className="primary" onClick={() => fileInput.current?.click()}>
-                  <Import size={17} />
-                  Choose your first book
-                </button>
-                <p className="drop-hint">Or drop a file anywhere in this room.</p>
-              </section>
-            ) : (
-              <>
-                {!query && filter === 'all' && continued && (
-                  <section className="continuation" aria-labelledby="continue-label">
-                    <h2 id="continue-label" className="eyebrow">
-                      CONTINUE READING
-                    </h2>
-                    <div className="continue-row">
-                      <button
-                        className="continue-cover"
-                        onClick={() => openBook(continued)}
-                        aria-label={`Continue ${continued.title}`}
-                      >
-                        <Cover book={continued} />
-                      </button>
-                      <div className="continue-copy">
-                        <h3>{continued.title}</h3>
-                        <p>{continued.author}</p>
-                        <p className="chapter-meta">
-                          {continued.locator?.kind === 'epub'
-                            ? `Chapter ${continued.locator.section + 1}`
-                            : continued.locator?.kind === 'pdf'
-                              ? `Page ${continued.locator.page}`
-                              : 'Your next chapter awaits'}
-                        </p>
-                        <div className="progress-row">
-                          <span className="book-progress">
-                            <i style={{ width: `${percent(continued) ?? 0}%` }} />
-                          </span>
-                          <span>
-                            {percent(continued) === null ? 'Beginning' : `${percent(continued)}%`}
-                          </span>
-                        </div>
-                      </div>
-                      <button className="primary return-book" onClick={() => openBook(continued)}>
-                        Return to your book
-                        <ArrowRight size={16} />
-                      </button>
-                    </div>
-                  </section>
-                )}
-                <section className="shelf-section" aria-labelledby="shelf-label">
-                  <header>
-                    <h2 id="shelf-label">
-                      {query
-                        ? 'Search results'
-                        : filter === 'reading'
-                          ? 'Reading now'
-                          : filter === 'finished'
-                            ? 'Finished books'
-                            : 'On your shelf'}
-                    </h2>
-                    <label className="sort-control">
-                      <span className="visually-hidden">Sort your books</span>
-                      <select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}>
-                        <option value="recent">Recently opened</option>
-                        <option value="title">Title</option>
-                        <option value="author">Author</option>
-                      </select>
-                      <ChevronDown size={13} />
-                    </label>
-                  </header>
-                  <div className="book-shelf">
-                    {filtered.map((book) => (
-                      <article className="shelf-book" key={book.id}>
-                        <button
-                          className="book-open"
-                          aria-label={`${book.title} ${book.author}`}
-                          onClick={() => openBook(book)}
-                        >
-                          <Cover book={book} />
-                          <span className="shelf-title">{book.title}</span>
-                          <span className="shelf-author">{book.author}</span>
-                        </button>
-                        <div className="book-caption">
-                          <span>
-                            {book.format.toUpperCase()}
-                            {book.sample ? ' · SAMPLE' : ''}
-                          </span>
-                          <button
-                            className="book-menu"
-                            aria-label={`Manage ${book.title}`}
-                            onClick={() => setEditing(book)}
-                          >
-                            <MoreHorizontal size={18} />
-                          </button>
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                  {!filtered.length && (
-                    <p className="no-results">
-                      {query ? 'No books match your search.' : 'There are no books here yet.'}
-                    </p>
-                  )}
-                </section>
-              </>
-            )}
-            {(!books.length || books.length < 3) && !query && filter === 'all' && (
-              <section className="sample-section">
-                <header>
-                  <div>
-                    <p className="eyebrow">SOMETHING TO TRY</p>
-                    <h2>A few pages, made for this room.</h2>
-                  </div>
-                  <p>Original Hush samples · EPUB</p>
-                </header>
-                <div className="sample-list">
-                  {SAMPLE_BOOKS.map((sample, index) => (
-                    <button
-                      className="sample-book"
-                      key={sample.title}
-                      disabled={!!importing}
-                      onClick={() => void addSample(index)}
-                    >
-                      <img
-                        src={`data:image/svg+xml,${encodeURIComponent(coverSvg(sample.title, sample.tone))}`}
-                        alt=""
-                      />
-                      <span>
-                        <strong>{sample.title}</strong>
-                        <span>{sample.subtitle}</span>
-                        <em>
-                          Add to your library <Plus size={13} />
-                        </em>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
-          </main>
-        </>
+        <LibraryView
+          books={books}
+          filtered={filtered}
+          continued={continued}
+          ready={ready}
+          importing={importing}
+          query={query}
+          filter={filter}
+          sort={sort}
+          voice={narrationStatus}
+          searchRef={searchInput}
+          onQuery={setQuery}
+          onFilter={setFilter}
+          onSort={setSort}
+          onImport={() => fileInput.current?.click()}
+          onSettings={() => settings.current?.showModal()}
+          onOpen={openBook}
+          onManage={setEditing}
+          onSample={(index) => void addSample(index)}
+        />
       ) : (
         <>
           <header className="reader-toolbar">
             <button className="back-library" aria-label="Library" onClick={() => void closeBook()}>
-              <ArrowLeft size={18} />
+              <ArrowLeft size={17} />
               <span>Library</span>
             </button>
             <div className="reader-book-name" title={active.title}>
-              {active.title}
+              <span className="reader-jacket" aria-hidden="true">
+                <BookCover book={active} eager />
+              </span>
+              <span>
+                {active.title}
+                <small>{active.author}</small>
+              </span>
             </div>
             <div className="reader-actions">
               <IconButton
                 label="Contents"
+                disabled={!location}
                 aria-expanded={panel === 'contents'}
                 onClick={() => togglePanel('contents')}
               >
@@ -734,25 +527,35 @@ export function App() {
               <IconButton label="Bookmark this position" onClick={bookmark} disabled={!location}>
                 <Bookmark size={19} />
               </IconButton>
-              <IconButton label="Show bookmarks" onClick={() => togglePanel('bookmarks')}>
+              <IconButton
+                label="Show bookmarks"
+                disabled={!location}
+                onClick={() => togglePanel('bookmarks')}
+              >
                 <BookOpen size={19} />
               </IconButton>
               {active.format === 'epub' ? (
                 <button
                   className="type-button"
                   aria-label="Appearance"
+                  disabled={!location}
                   aria-expanded={panel === 'appearance'}
                   onClick={() => togglePanel('appearance')}
                 >
                   Aa
                 </button>
               ) : (
-                <IconButton label="PDF reading order" onClick={() => togglePanel('pdf-text')}>
+                <IconButton
+                  label="PDF reading order"
+                  disabled={!location}
+                  onClick={() => togglePanel('pdf-text')}
+                >
                   <SlidersHorizontal size={19} />
                 </IconButton>
               )}
               <IconButton
-                label={focus ? 'Leave focus mode' : 'Focus mode'}
+                label={focus ? 'Focus mode active' : 'Focus mode'}
+                disabled={!location}
                 onClick={() => {
                   setFocus(!focus);
                   setPanel(null);
@@ -807,7 +610,11 @@ export function App() {
               />
             )}
             {panel === 'contents' && (
-              <aside className="drawer contents-drawer" aria-label="Contents">
+              <ReaderPanel
+                className="contents-drawer"
+                label="Contents"
+                onClose={() => setPanel(null)}
+              >
                 <header>
                   <h2>{active.format === 'pdf' ? 'Pages & contents' : 'Contents'}</h2>
                   <IconButton label="Close contents" onClick={() => setPanel(null)}>
@@ -827,10 +634,10 @@ export function App() {
                     </button>
                   ))}
                 </nav>
-              </aside>
+              </ReaderPanel>
             )}
             {panel === 'bookmarks' && (
-              <aside className="drawer" aria-label="Bookmarks">
+              <ReaderPanel label="Bookmarks" onClose={() => setPanel(null)}>
                 <header>
                   <h2>Your places</h2>
                   <IconButton label="Close bookmarks" onClick={() => setPanel(null)}>
@@ -871,10 +678,14 @@ export function App() {
                     ))}
                   </div>
                 )}
-              </aside>
+              </ReaderPanel>
             )}
             {panel === 'pdf-text' && (
-              <aside className="drawer pdf-text-drawer" aria-label="PDF reading order">
+              <ReaderPanel
+                className="pdf-text-drawer"
+                label="PDF reading order"
+                onClose={() => setPanel(null)}
+              >
                 <header>
                   <h2>Reading order</h2>
                   <IconButton label="Close reading order" onClick={() => setPanel(null)}>
@@ -907,7 +718,7 @@ export function App() {
                     Listen to this PDF
                   </button>
                 )}
-              </aside>
+              </ReaderPanel>
             )}
           </main>
           <footer className="reader-footer">
@@ -927,6 +738,11 @@ export function App() {
                 <ChevronLeft size={20} />
               </IconButton>
               <span className="page-label">{location?.pageLabel}</span>
+              <span className="mobile-bookmark">
+                <IconButton label="Bookmark this position" onClick={bookmark} disabled={!location}>
+                  <Bookmark size={18} />
+                </IconButton>
+              </span>
               <button className="listen-button" onClick={listen} disabled={!location}>
                 <Headphones size={16} />
                 Listen
@@ -937,92 +753,24 @@ export function App() {
             </div>
           </footer>
           {narration.state !== 'idle' && (
-            <section className="narration-bar" aria-label="Narration controls">
-              <div className="narration-description">
-                <Volume2 size={22} />
-                <span>
-                  <strong>
-                    {narration.state === 'buffering'
-                      ? 'Preparing the next sentence…'
-                      : narration.state === 'error'
-                        ? 'Narration paused'
-                        : narration.state === 'ended'
-                          ? 'End of this passage'
-                          : 'Reading aloud'}
-                  </strong>
-                  <small>
-                    {narration.error ||
-                      (narration.resumeAdjusted
-                        ? 'Audio was cleared; continuing from this sentence.'
-                        : location?.chapter)}
-                  </small>
-                </span>
-              </div>
-              <div className="transport">
-                <IconButton label="Previous sentence" onClick={narration.previous}>
-                  <SkipBack size={20} />
-                </IconButton>
-                <button
-                  className="play-pause"
-                  onClick={narration.toggle}
-                  aria-label={narration.state === 'playing' ? 'Pause narration' : 'Play narration'}
-                >
-                  {narration.state === 'playing' ? <Pause size={20} /> : <Play size={20} />}
-                </button>
-                <IconButton label="Next sentence" onClick={narration.next}>
-                  <SkipForward size={20} />
-                </IconButton>
-              </div>
-              <label className="narration-seek">
-                <span className="visually-hidden">Position in sentence</span>
-                <input
-                  type="range"
-                  min="0"
-                  max={Math.max(0.01, narration.duration)}
-                  step=".05"
-                  value={Math.min(narration.position, narration.duration)}
-                  disabled={!narration.duration}
-                  onChange={(e) => narration.seek(Number(e.target.value))}
-                />
-                <output>
-                  {Math.floor(narration.position)}s / {Math.ceil(narration.duration)}s
-                </output>
-              </label>
-              <label className="speed-control">
-                <span className="visually-hidden">Narration speed</span>
-                <select
-                  value={narration.speed}
-                  onChange={(e) => narration.setSpeed(Number(e.target.value))}
-                >
-                  {[0.75, 1, 1.25, 1.5].map((rate) => (
-                    <option key={rate} value={rate}>
-                      {rate}×
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="volume-control">
-                <Volume2 size={17} />
-                <span className="visually-hidden">Volume</span>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={narration.volume}
-                  onChange={(e) => narration.setVolume(Number(e.target.value))}
-                />
-              </label>
-              <IconButton
-                label="Stop narration"
-                onClick={() => {
-                  narration.stop();
-                  reader.current?.highlight(null);
-                }}
-              >
-                <X size={18} />
-              </IconButton>
-            </section>
+            <NarrationDock
+              narration={narration}
+              chapter={location?.chapter}
+              onStop={() => {
+                narration.stop();
+                reader.current?.highlight(null);
+              }}
+            />
+          )}
+          {focus && (
+            <button
+              className="focus-return"
+              aria-label="Leave focus mode"
+              onClick={() => setFocus(false)}
+            >
+              <Minimize2 size={16} />
+              <span>Return to controls</span>
+            </button>
           )}
         </>
       )}
@@ -1040,24 +788,31 @@ export function App() {
           </IconButton>
         </div>
       )}
-      <dialog ref={settings} className="settings-dialog">
+      <dialog ref={settings} className="settings-dialog" aria-labelledby="settings-title">
         <header>
-          <p className="eyebrow">HUSH · YOUR READING ROOM</p>
+          <p className="eyebrow">
+            <FoldMark />
+            The spoken word
+          </p>
           <IconButton label="Close settings" onClick={() => settings.current?.close()}>
             <X size={20} />
           </IconButton>
         </header>
-        <h2>A voice, close at hand.</h2>
-        <p className="settings-lead">
-          Your books stay on your device.
+        <h2 id="settings-title">
+          A voice,
           <br />
-          Enable a neural voice to listen here, on your device.
+          <em>close at hand.</em>
+        </h2>
+        <p className="settings-lead">
+          From the page to your ears. A neural voice that runs entirely on your device.
         </p>
         <div className="voice-status">
           <Headphones size={28} />
           <div>
             <strong>{narrationStatus.engine}</strong>
-            <span>{narrationStatus.available ? 'Local voice ready' : 'Voice unavailable'}</span>
+            <span>
+              {narrationStatus.available ? 'Local voice ready' : 'Optional · not yet enabled'}
+            </span>
           </div>
         </div>
         <p className="setup-explanation">
@@ -1067,6 +822,17 @@ export function App() {
         {repository.kind === 'browser' && (
           <BrowserVoicePanel onStatus={setNarrationStatus} onStop={narration.stop} />
         )}
+        <div className="voice-principles">
+          <span>
+            <strong>01</strong>Download once
+          </span>
+          <span>
+            <strong>02</strong>Listen locally
+          </span>
+          <span>
+            <strong>03</strong>Keep your place
+          </span>
+        </div>
         <p className="settings-meta">
           {repository.kind === 'native'
             ? 'Your books are kept as private copies on this computer.'
@@ -1110,7 +876,12 @@ export function App() {
           Back to your book
         </button>
       </dialog>
-      <dialog ref={editDialog} className="manage-dialog" onClose={() => setEditing(null)}>
+      <dialog
+        ref={editDialog}
+        className="manage-dialog"
+        aria-labelledby="manage-title"
+        onClose={() => setEditing(null)}
+      >
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -1125,7 +896,7 @@ export function App() {
           }}
         >
           <header>
-            <h2>Book details</h2>
+            <h2 id="manage-title">Book details</h2>
             <IconButton label="Close book details" onClick={() => editDialog.current?.close()}>
               <X size={19} />
             </IconButton>
@@ -1193,20 +964,5 @@ export function App() {
         </form>
       </dialog>
     </div>
-  );
-}
-
-function Cover({ book }: { book: BookEntry }) {
-  const fallback = coverSvg(
-    book.title,
-    ['forest', 'clay', 'slate'][parseInt(book.hash.slice(0, 2), 16) % 3],
-  );
-  return (
-    <img
-      className="book-cover"
-      src={book.cover || `data:image/svg+xml,${encodeURIComponent(fallback)}`}
-      alt={`Cover of ${book.title}`}
-      loading="lazy"
-    />
   );
 }
