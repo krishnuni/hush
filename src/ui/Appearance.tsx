@@ -1,7 +1,7 @@
-import { useEffect, useRef } from 'react';
 import { X, Check } from 'lucide-react';
 import { DEFAULT_PREFERENCES, type Preferences } from '../domain/types';
 import { IconButton } from './IconButton';
+import { ReaderPanel } from './ReaderPanel';
 export function Appearance({
   preferences,
   onChange,
@@ -11,27 +11,16 @@ export function Appearance({
   onChange(p: Preferences): void;
   onClose(): void;
 }) {
-  const panel = useRef<HTMLElement>(null);
-  useEffect(() => {
-    panel.current?.querySelector<HTMLButtonElement>('button')?.focus();
-  }, []);
   const change = (patch: Partial<Preferences>) => onChange({ ...preferences, ...patch });
   return (
-    <aside
-      className="drawer appearance"
-      ref={panel}
-      aria-label="Appearance settings"
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') onClose();
-      }}
-    >
+    <ReaderPanel className="appearance" label="Appearance settings" onClose={onClose}>
       <header>
         <h2>Appearance</h2>
         <IconButton label="Close appearance" onClick={onClose}>
           <X size={19} />
         </IconButton>
       </header>
-      <p className="drawer-intro">Make room for reading.</p>
+      <p className="drawer-intro">Typeset it your way. Your place stays put.</p>
       <fieldset>
         <legend>Theme</legend>
         <div className="theme-options">
@@ -42,7 +31,7 @@ export function Appearance({
               aria-pressed={preferences.theme === theme}
               onClick={() => change({ theme })}
             >
-              <span className={`theme-preview ${theme}`}>
+              <span className={`theme-preview ${theme}`} aria-hidden="true">
                 Aa{preferences.theme === theme && <Check size={12} />}
               </span>
               <span>{theme === 'night' ? 'Night' : theme === 'warm' ? 'Warm' : 'Light'}</span>
@@ -127,6 +116,6 @@ export function Appearance({
       >
         Reset reading defaults
       </button>
-    </aside>
+    </ReaderPanel>
   );
 }
