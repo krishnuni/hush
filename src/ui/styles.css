@@ -1214,13 +1214,6 @@ dialog {
   max-height: calc(100dvh - 48px);
   overscroll-behavior: contain;
 }
-/* Re-match open top-layer dialogs when the theme changes. WebKit can retain
-   their previous inherited colour when only root custom properties change. */
-:root[data-theme='light'] dialog,
-:root[data-theme='warm'] dialog,
-:root[data-theme='night'] dialog {
-  color: var(--ink);
-}
 dialog::backdrop {
   background: #151b1559;
   animation: backdrop-enter var(--normal) var(--ease);
