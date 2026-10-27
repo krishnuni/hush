@@ -6284,7 +6284,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 
 
 ================================================================
-Newsreader (self-hosted WOFF2; lossless format conversion from the upstream variable TTF)
+Newsreader (self-hosted WOFF2; lossless format conversion from upstream variable TTF)
 Source: https://github.com/google/fonts/tree/main/ofl/newsreader
 Copyright 2020 The Newsreader Project Authors (http://github.com/productiontype/Newsreader)
 
@@ -6381,7 +6381,7 @@ FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
 OTHER DEALINGS IN THE FONT SOFTWARE.
 
 ================================================================
-IBMPlexSans (self-hosted WOFF2; lossless format conversion from the upstream variable TTF)
+IBMPlexSans (self-hosted WOFF2; lossless format conversion from upstream variable TTF)
 Source: https://github.com/google/fonts/tree/main/ofl/ibmplexsans
 Copyright © 2017 IBM Corp. with Reserved Font Name "Plex"
 
