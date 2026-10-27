@@ -29,6 +29,7 @@ interface Props {
   filter: Filter;
   sort: Sort;
   voice: NarrationStatus;
+  storage: 'browser' | 'native';
   searchRef: RefObject<HTMLInputElement | null>;
   onQuery(value: string): void;
   onFilter(value: Filter): void;
@@ -207,7 +208,7 @@ export function LibraryView(p: Props) {
         <div className="library-colophon">
           <span>
             <span className="status-dot" />
-            Stored in this browser
+            Stored in this {p.storage === 'browser' ? 'browser' : 'computer'}
           </span>
           <button onClick={p.onSettings}>
             <Headphones size={15} />

@@ -489,6 +489,7 @@ export function App() {
           filter={filter}
           sort={sort}
           voice={narrationStatus}
+          storage={repository.kind}
           searchRef={searchInput}
           onQuery={setQuery}
           onFilter={setFilter}
@@ -873,7 +874,7 @@ export function App() {
           </a>
         </p>
         <button className="primary" onClick={() => settings.current?.close()}>
-          Back to your book
+          {active ? 'Back to your book' : 'Back to library'}
         </button>
       </dialog>
       <dialog
