@@ -1,6 +1,9 @@
+import { DEFAULT_VOICE, voiceFile, type VoiceId } from './voices.ts';
+
 export const WEB_ENGINE = 'Kokoro · browser neural voice';
-export const WEB_ENGINE_KEY =
-  'hush-kokoro-q8-v1/1939ad2a8e416c0acfeecc08a694d14ef25f2231/af_heart/transformers-3.8.1';
+export const webEngineKey = (voice: VoiceId) =>
+  `hush-kokoro-q8-v1/1939ad2a8e416c0acfeecc08a694d14ef25f2231/${voice}/transformers-3.8.1`;
+export const WEB_ENGINE_KEY = webEngineKey(DEFAULT_VOICE);
 export const WEB_VOICE_VERSION = 'hush-kokoro-q8-v1';
 export const voiceCacheName = (base: string) =>
   `hush-voice-${encodeURIComponent(base)}-${WEB_VOICE_VERSION}`;
@@ -10,14 +13,21 @@ export interface VoiceManifest {
   files: { path: string; bytes: number; sha256: string }[];
 }
 export interface WebVoiceState {
+  voiceId: VoiceId;
   phase: 'disabled' | 'checking' | 'downloading' | 'loading' | 'ready' | 'error';
   progress: number;
+  downloadBytes: number;
   message: string;
 }
 export type VoiceRequest =
-  { id: number; action: 'load' } | { id: number; action: 'synthesize'; text: string };
+  | { id: number; action: 'load'; voice: VoiceId }
+  | { id: number; action: 'synthesize'; voice: VoiceId; text: string };
 export type VoiceResponse =
   { id: number; ready: true } | { id: number; wav: ArrayBuffer } | { id: number; error: string };
+
+/** Keep the v1 engine/cache compatible; substitute only the selected, pinned voice profile. */
+export const filesForVoice = (manifest: VoiceManifest, voice: VoiceId) =>
+  manifest.files.map((file) => (file.path === 'af_heart.bin' ? voiceFile(voice) : file));
 
 /** Only same-origin, versioned resources named by our build may enter this cache. */
 export function validManifest(value: unknown): value is VoiceManifest {
