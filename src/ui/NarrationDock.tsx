@@ -10,10 +10,12 @@ export function NarrationDock({
   narration: n,
   chapter,
   onStop,
+  onVoiceSettings,
 }: {
   narration: Narration;
   chapter?: string;
   onStop(): void;
+  onVoiceSettings?(): void;
 }) {
   const [details, setDetails] = useState(false);
   const playing = n.state === 'playing';
@@ -43,7 +45,7 @@ export function NarrationDock({
           <small role={n.state === 'error' ? 'alert' : undefined}>
             {n.error ||
               (n.resumeAdjusted
-                ? 'Audio was cleared; continuing from this sentence.'
+                ? 'Voice or saved audio changed; continuing from this sentence.'
                 : chapter || 'Local neural narration')}
           </small>
         </span>
@@ -109,6 +111,11 @@ export function NarrationDock({
       </IconButton>
       {details && (
         <div className="audio-details">
+          {onVoiceSettings && (
+            <button className="text-button" onClick={onVoiceSettings}>
+              Choose a voice
+            </button>
+          )}
           <label className="volume-control">
             <Volume2 size={17} />
             <span>Volume</span>

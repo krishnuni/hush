@@ -3397,3 +3397,44 @@ input[type='range']::-moz-range-thumb {
     height: 22px;
   }
 }
+
+/* Voice selection uses the same measured controls as reading appearance. */
+.voice-selector {
+  display: block;
+}
+.voice-selector > span {
+  font-size: 12px;
+  font-weight: 500;
+}
+.voice-selector select {
+  width: 100%;
+  min-height: 46px;
+  margin: 9px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: var(--canvas);
+  color: var(--ink);
+  font: 13px var(--sans);
+}
+.voice-choice-meta {
+  font: 10px var(--mono);
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 0 0 16px;
+}
+.voice-preview {
+  border-top: 1px solid var(--line);
+  margin-top: 12px;
+  padding-top: 8px;
+}
+.voice-preview button {
+  min-height: 44px;
+  gap: 8px;
+}
+.voice-preview > span {
+  display: block;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--muted);
+}
