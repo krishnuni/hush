@@ -5,6 +5,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { pipeline } from 'node:stream/promises';
 import { Readable, Transform } from 'node:stream';
+import voices from '../src/audio/voices.json' with { type: 'json' };
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const destination = resolve(root, 'public/narration');
@@ -64,18 +65,12 @@ for (const name of ['ort-wasm-simd-threaded.jsep.mjs', 'ort-wasm-simd-threaded.j
     resolve(root, 'node_modules/@huggingface/transformers/dist', name),
     resolve(destination, 'ort', name),
   );
-await copyFile(
-  resolve(root, 'node_modules/kokoro-js/voices/af_heart.bin'),
-  resolve(destination, 'af_heart.bin'),
-);
-if (
-  (await digest(
-    resolve(destination, 'af_heart.bin'),
-    522240,
-    'd583ccff3cdca2f7fae535cb998ac07e9fcb90f09737b9a41fa2734ec44a8f0b',
-  )) !== 'd583ccff3cdca2f7fae535cb998ac07e9fcb90f09737b9a41fa2734ec44a8f0b'
-)
-  throw new Error('Bundled voice does not match the pinned upstream voice.');
+for (const voice of voices) {
+  const path = resolve(destination, `${voice.id}.bin`);
+  await copyFile(resolve(root, `node_modules/kokoro-js/voices/${voice.id}.bin`), path);
+  if ((await digest(path, voice.bytes, voice.sha256)) !== voice.sha256)
+    throw new Error(`Bundled voice does not match its pinned checksum: ${voice.id}`);
+}
 const names = [
   ...remote.map(([name]) => 'model/kokoro/' + name),
   'af_heart.bin',
