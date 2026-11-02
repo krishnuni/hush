@@ -83,6 +83,9 @@ export function BrowserVoicePanel({
       {(state.phase === 'checking' || state.phase === 'loading') && (
         <progress aria-label="Preparing neural voice" />
       )}
+      {installed && !busy && (
+        <VoicePreview key={state.voiceId} voice={state.voiceId} onBeforePlay={onStop} />
+      )}
       <div className="voice-setup-actions">
         {busy ? (
           <button className="text-button" onClick={browserVoice.cancelSetup}>
@@ -123,16 +126,18 @@ export function BrowserVoicePanel({
           </>
         )}
       </div>
-      {installed && !busy && (
-        <VoicePreview key={state.voiceId} voice={state.voiceId} onBeforePlay={onStop} />
-      )}
       <p className="settings-footnote">
-        The shared engine and your first voice need about 115 MB. Each additional voice is 0.52 MB;
-        choose one, then download it. Saved voices work offline. Switching voices keeps your
-        sentence, starting it again in the new voice. Previews use the same local neural engine.
-        Book text is never sent to a narration API. Removing downloads removes the engine and all
-        saved voices, keeping your books. Keep Hush open while listening.
+        The first voice downloads about 115 MB; extra profiles are 0.52 MB. Speech runs locally.
+        Book text is never sent to a narration API.
       </p>
+      <details className="voice-download-details">
+        <summary>Offline use &amp; managing voices</summary>
+        <p className="settings-footnote">
+          Saved voices work offline. Switching voices keeps your sentence, starting it again in the
+          new voice. Previews use the same local neural engine. Removing downloads removes the
+          engine and all saved voices, keeping your books. Keep Hush open while listening.
+        </p>
+      </details>
     </section>
   );
 }
