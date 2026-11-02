@@ -30,6 +30,7 @@ try {
   await mkdir('docs/images', { recursive: true });
   const capture = async (name) => {
     await page.evaluate(() => document.fonts.ready);
+    await page.locator('.toast').waitFor({ state: 'hidden' });
     await page.waitForTimeout(550); // Finite scene transition, not a simulated application state.
     await page.screenshot({
       path: `docs/images/${name}.png`,
