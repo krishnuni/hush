@@ -108,10 +108,11 @@ test('WCAG checks on the empty library and narration setup; no automatic model d
   expect((await scan()).violations).toEqual([]);
   for (const theme of ['Light', 'Night']) {
     await page.getByRole('button', { name: theme, exact: true }).click();
-    await expect(page.getByRole('dialog')).toHaveCSS(
-      'color',
-      theme === 'Night' ? 'rgb(222, 222, 208)' : 'rgb(41, 43, 39)',
-    );
+    const ink = theme === 'Night' ? 'rgb(222, 222, 208)' : 'rgb(41, 43, 39)';
+    await expect(page.getByRole('dialog')).toHaveCSS('color', ink);
+    // WebKit settles inherited colours in nested text after the theme root.
+    // Wait for the visible voice label before measuring the whole dialog.
+    await expect(page.locator('.voice-status strong')).toHaveCSS('color', ink);
     expect((await scan()).violations).toEqual([]);
   }
 });
