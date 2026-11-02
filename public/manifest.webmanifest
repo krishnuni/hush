@@ -1,13 +1,13 @@
 {
-  "name": "Hush — Your reading room",
+  "name": "Hush \u2014 Your reading room",
   "short_name": "Hush",
-  "description": "A quiet, private home for your books.",
+  "description": "A personal reading instrument. EPUB, PDF and on-device neural narration.",
   "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#fcf8ef",
-  "theme_color": "#fcf8ef",
+  "background_color": "#f6f3eb",
+  "theme_color": "#f6f3eb",
   "icons": [
     {
       "src": "./hush-icon.png",

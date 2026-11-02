@@ -10,18 +10,18 @@ export const SAMPLE_BOOKS = [
   { title: 'Small Celestial Bodies', subtitle: 'Notes for a clear evening', tone: 'slate' },
 ] as const;
 
-export function coverSvg(title: string, tone: string): string {
+export function coverSvg(title: string, tone: string, author = 'HUSH EDITIONS'): string {
   const colours: Record<string, [string, string]> = {
-    forest: ['#3c5146', '#eee6cf'],
-    clay: ['#8c5942', '#f6e7cd'],
-    slate: ['#283c43', '#d8dcc5'],
+    forest: ['#b9c0a0', '#293d31'],
+    clay: ['#b4553b', '#f7ead8'],
+    slate: ['#2d3d43', '#e7e3cc'],
   };
   const [bg, fg] = colours[tone] ?? colours.forest;
   const words = title.split(' ');
   const lines: string[] = [];
   let line = '';
   for (const word of words) {
-    if ((line + ' ' + word).trim().length > 15) {
+    if (line && (line + ' ' + word).trim().length > 14) {
       lines.push(line);
       line = word;
     } else line = (line + ' ' + word).trim();
@@ -33,7 +33,34 @@ export function coverSvg(title: string, tone: string): string {
       .replaceAll('<', '&lt;')
       .replaceAll('>', '&gt;')
       .replaceAll('"', '&quot;');
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 450"><rect width="300" height="450" fill="${bg}"/><path d="M13 8V442" stroke="${fg}" opacity=".35"/>${lines.map((t, i) => `<text x="35" y="${65 + i * 34}" font-family="Georgia,serif" font-size="28" fill="${fg}">${escape(t)}</text>`).join('')}${Array.from({ length: 6 }, (_, i) => `<path d="M40 ${255 + i * 12} C110 ${170 + i * 12},190 ${355 + i * 9},260 ${240 + i * 12}" stroke="${fg}" fill="none" opacity=".8"/>`).join('')}<text x="35" y="410" font-family="sans-serif" letter-spacing="2" font-size="11" fill="${fg}">HUSH · ORIGINAL SAMPLE</text></svg>`;
+  const text = (y: number, size = 30) =>
+    lines
+      .slice(0, 5)
+      .map(
+        (t, i) =>
+          `<text x="28" y="${y + i * (size + 3)}" font-family="Georgia,serif" font-size="${size}" fill="${fg}">${escape(t.slice(0, 27))}</text>`,
+      )
+      .join('');
+  const imprint = `<text x="28" y="426" font-family="sans-serif" letter-spacing="1.5" font-size="8" fill="${fg}">${escape(author.toUpperCase().slice(0, 38))}</text>`;
+  const number = tone === 'forest' ? '001' : tone === 'clay' ? '002' : '003';
+  const small = `<text x="28" y="31" font-family="sans-serif" letter-spacing="2" font-size="8" fill="${fg}">H / ${number}</text><path d="M251 21h15v17l-7-4-8 4V21Z" fill="${fg}"/>`;
+  const artwork =
+    tone === 'forest'
+      ? `<path d="M66 194V88h168v237H66v-61h93v-70H66Z" fill="${fg}"/><path d="M183 88h51v51l-51-51Z" fill="#e8e8d3"/><path d="M77 100h93v83H77z" fill="${bg}"/><path d="M159 264h63v49h-63z" fill="${bg}"/>${text(357, 29)}`
+      : tone === 'clay'
+        ? `${text(89, 32)}<path d="M28 267c68-108 135 111 244-1M28 284c68-108 135 111 244-1M28 301c68-108 135 111 244-1M28 318c68-108 135 111 244-1M28 335c68-108 135 111 244-1M28 352c68-108 135 111 244-1" fill="none" stroke="${fg}" stroke-width="1.5"/><path d="M28 224h44" stroke="${fg}"/>`
+        : `<circle cx="153" cy="179" r="85" stroke="${fg}" stroke-width=".7" fill="none"/><ellipse cx="153" cy="179" rx="106" ry="40" transform="rotate(-38 153 179)" stroke="${fg}" stroke-width=".7" fill="none"/><circle cx="153" cy="179" r="34" fill="${fg}"/><circle cx="217" cy="100" r="6" fill="#b9c0a0"/><path d="M153 66v19M153 273v19M42 179h19M245 179h19" stroke="${fg}" stroke-width=".7"/>${text(341, 26)}`;
+  // Imported titles can be much longer than the original editions. A dedicated typeset
+  // treatment reserves the full page for them rather than clipping over the artwork.
+  const original = SAMPLE_BOOKS.some((sample) => sample.title === title);
+  const ornament =
+    tone === 'forest'
+      ? `<path d="M222 302h50v50h-50z" stroke="${fg}" fill="none"/><path d="m222 302 50 50h-50z" fill="${fg}"/>`
+      : tone === 'clay'
+        ? `<circle cx="221" cy="337" r="47" fill="${fg}"/><path d="M28 320h222M28 337h222M28 354h222" stroke="${bg}" stroke-width="2"/>`
+        : `<path d="M28 300v68M42 300v68M56 300v68M70 300v68M84 300v68" stroke="${fg}" stroke-width="1"/><circle cx="245" cy="338" r="24" stroke="${fg}" fill="none"/>`;
+  const fallback = `<path d="M28 67h244M28 388h244" stroke="${fg}" stroke-width=".7"/>${text(tone === 'clay' ? 106 : 122, 29)}${ornament}`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 450"><rect width="300" height="450" fill="${bg}"/>${small}${original ? artwork : fallback}${imprint}</svg>`;
 }
 
 const quietChapters = [
@@ -154,7 +181,7 @@ export async function createSampleBook(index = 0): Promise<File> {
   for (const [i, chapter] of chapters.entries())
     zip.file(
       `OEBPS/chapter${i + 1}.xhtml`,
-      `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>${chapter.title}</title><link rel="stylesheet" href="style.css"/></head><body><h1>${chapter.title}</h1>${chapter.paragraphs.map((p, j) => `<p id="p${j}">${p}</p>`).join('')}${i === 1 ? '<figure><img src="cover.svg" alt="Six fine lines move together like ripples across dark green paper." width="240"/><figcaption>An original Hush cover study.</figcaption></figure>' : ''}</body></html>`,
+      `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>${chapter.title}</title><link rel="stylesheet" href="style.css"/></head><body><h1>${chapter.title}</h1>${chapter.paragraphs.map((p, j) => `<p id="p${j}">${p}</p>`).join('')}${i === 1 ? '<figure><img src="cover.svg" alt="An abstract Hush edition jacket, composed of geometric shapes." width="240"/><figcaption>An original Hush cover study.</figcaption></figure>' : ''}</body></html>`,
     );
   zip.file(
     'OEBPS/book.opf',

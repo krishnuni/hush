@@ -149,6 +149,33 @@ test('static browser neural voice plays real audio, continues chapters and reope
   );
   mkdirSync('test-results', { recursive: true });
   writeFileSync(`test-results/${test.info().project.name}-web-neural.wav`, Buffer.from(wave));
+  // Exercise the actual PDF reading-order modal and the real installed model offline.
+  await page.getByRole('button', { name: 'Library', exact: true }).click();
+  await page
+    .getByLabel('Import EPUB or PDF documents')
+    .setInputFiles('tests/fixtures/reading-test.pdf');
+  await page.getByRole('button', { name: 'reading-test Unknown author', exact: true }).click();
+  await expect(page.locator('.textLayer')).toContainText('A page by the water');
+  await page.getByRole('button', { name: 'Listen', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'PDF reading order', exact: true })).toBeVisible();
+  await expect(page.locator('.pdf-extracted-text')).toContainText('A page by the water');
+  await page.evaluate(() => {
+    (window as unknown as { __webVoiceCapture: { peak: number } }).__webVoiceCapture.peak = 0;
+  });
+  await page.getByRole('button', { name: 'Listen to this PDF', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Pause narration', exact: true })).toBeVisible({
+    timeout: 120000,
+  });
+  await expect.poll(() => page.locator('.pdf-highlights span').count()).toBeGreaterThan(0);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => (window as unknown as { __webVoiceCapture: { peak: number } }).__webVoiceCapture.peak,
+      ),
+    )
+    .toBeGreaterThan(0.01);
+  await page.getByRole('button', { name: 'Stop narration', exact: true }).click();
   expect(requests.filter((r) => r.method === 'POST')).toEqual([]);
   expect(
     requests

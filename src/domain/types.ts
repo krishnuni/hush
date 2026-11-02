@@ -13,10 +13,10 @@ export interface Preferences {
 export const DEFAULT_PREFERENCES: Preferences = {
   theme: 'warm',
   font: 'serif',
-  fontSize: 21,
-  lineHeight: 1.65,
+  fontSize: 19,
+  lineHeight: 1.6,
   contentWidth: 680,
-  margin: 48,
+  margin: 40,
 };
 
 export interface EpubLocator {
@@ -122,9 +122,9 @@ export function boundPreferences(value: Partial<Preferences>): Preferences {
   return {
     theme: ['warm', 'light', 'night'].includes(value.theme ?? '') ? value.theme! : 'warm',
     font: ['serif', 'sans', 'publisher'].includes(value.font ?? '') ? value.font! : 'serif',
-    fontSize: clamp(value.fontSize, 16, 32, 21),
-    lineHeight: clamp(value.lineHeight, 1.35, 1.95, 1.65),
+    fontSize: clamp(value.fontSize, 16, 32, 19),
+    lineHeight: clamp(value.lineHeight, 1.35, 1.95, 1.6),
     contentWidth: clamp(value.contentWidth, 480, 900, 680),
-    margin: clamp(value.margin, 16, 96, 48),
+    margin: clamp(value.margin, 16, 96, 40),
   };
 }

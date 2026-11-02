@@ -93,6 +93,17 @@ export const PdfReader = forwardRef<ReaderHandle, Props>(function PdfReader(prop
       scale: Math.max(0.5, Math.min(2, locator.scale || 1)),
       rotation: (((locator.rotation || 0) % 360) + 360) % 360,
     };
+    if (pdf.current) {
+      if (next.page !== position.current.page)
+        next.progress = (next.page - 1) / pdf.current.numPages;
+      // Persist the requested view before asynchronous painting. A quick return
+      // to the library must retain the selected page, rotation and zoom.
+      callbacks.current.onUpdate({
+        locator: next,
+        chapter: `Page ${next.page}`,
+        pageLabel: `${next.page} of ${pdf.current.numPages}`,
+      });
+    }
     target.current = next;
     position.current = next;
     rendering.current = true;

@@ -21,9 +21,9 @@ interface Props {
   onChapters(chapters: Chapter[]): void;
 }
 const colours = {
-  warm: ['#fcf8ef', '#2b302c', '#626b61'],
-  light: ['#ffffff', '#252a27', '#5e665f'],
-  night: ['#1c211f', '#e5e5da', '#adb5ac'],
+  warm: ['#f6f3eb', '#292b27', '#65685e'],
+  light: ['#fffefa', '#292b27', '#65685e'],
+  night: ['#20211f', '#deded0', '#a6a79c'],
 };
 
 export const EpubReader = forwardRef<ReaderHandle, Props>(function EpubReader(props, ref) {
@@ -112,9 +112,10 @@ export const EpubReader = forwardRef<ReaderHandle, Props>(function EpubReader(pr
             .then(() => {
               if (activeCfi.current !== highlight) return;
               view.annotations.highlight(highlight, {}, undefined, 'hush-current-sentence', {
-                fill: '#9da660',
-                'fill-opacity': '0.25',
-                'mix-blend-mode': 'multiply',
+                fill: callbacks.current.preferences.theme === 'night' ? '#e28a6d' : '#c15b3e',
+                'fill-opacity': '0.18',
+                'mix-blend-mode':
+                  callbacks.current.preferences.theme === 'night' ? 'screen' : 'multiply',
               });
             })
             .catch(() => {});
@@ -130,7 +131,7 @@ export const EpubReader = forwardRef<ReaderHandle, Props>(function EpubReader(pr
       contents.document.getElementById('hush-reader-style') ??
       contents.document.head.appendChild(contents.document.createElement('style'));
     style.id = 'hush-reader-style';
-    style.textContent = `html,body{background:${background}!important;color:${foreground}!important}body{font-size:${preferences.fontSize}px!important;line-height:${preferences.lineHeight}!important;${preferences.font === 'publisher' ? '' : `font-family:${preferences.font === 'serif' ? 'HushSerif, Georgia, serif' : 'HushSans, sans-serif'}!important;`}padding:8px 6px!important;margin:0!important;text-align:left!important;}p,li,blockquote{font-size:inherit!important;line-height:${preferences.lineHeight}!important}p{margin:0 0 1.05em!important}h1,h2,h3{line-height:1.25!important;color:${foreground}!important;}h1{font-size:1.75em!important;font-weight:400!important;margin:1em 0 1.1em!important}img,svg{max-width:100%!important;height:auto!important}a{color:${foreground}!important;text-underline-offset:3px}figcaption{font-size:.75em;color:${muted}}::selection{background:#b8bc8c88}`;
+    style.textContent = `html,body{background:${background}!important;color:${foreground}!important}body{font-size:${preferences.fontSize}px!important;line-height:${preferences.lineHeight}!important;${preferences.font === 'publisher' ? '' : `font-family:${preferences.font === 'serif' ? 'HushSerif, Georgia, serif' : 'HushSans, sans-serif'}!important;`}padding:8px 6px!important;margin:0!important;text-align:left!important;}p,li,blockquote{font-size:inherit!important;line-height:${preferences.lineHeight}!important}p{margin:0 0 .8em!important}h1,h2,h3{line-height:1.25!important;color:${foreground}!important;}h1{font-size:1.75em!important;font-weight:400!important;margin:.8em 0 1em!important}img,svg{max-width:100%!important;height:auto!important}a{color:${foreground}!important;text-underline-offset:3px}figcaption{font-size:.75em;color:${muted}}::selection{background:#bc573e33}`;
     if (preferences.font !== 'publisher')
       style.textContent += `body p,body li,body blockquote,body h1,body h2,body h3,body h4,body figcaption{font-family:${preferences.font === 'serif' ? 'HushSerif, Georgia, serif' : 'HushSans, sans-serif'}!important}`;
   };
@@ -220,6 +221,25 @@ export const EpubReader = forwardRef<ReaderHandle, Props>(function EpubReader(pr
           },
           true,
         );
+        // Keyboard events do not cross an iframe boundary. Relay reading shortcuts
+        // through the host controls so page turns also checkpoint/stop narration.
+        contents.document.addEventListener('keydown', (event) => {
+          const target = event.target as HTMLElement;
+          if (target.closest?.('a,button,input,textarea,select,[contenteditable="true"]')) return;
+          if (!['ArrowLeft', 'ArrowRight', 'Escape', ' '].includes(event.key)) return;
+          const forwarded = new KeyboardEvent('keydown', {
+            key: event.key,
+            code: event.code,
+            shiftKey: event.shiftKey,
+            ctrlKey: event.ctrlKey,
+            metaKey: event.metaKey,
+            altKey: event.altKey,
+            bubbles: true,
+            cancelable: true,
+          });
+          container.current?.dispatchEvent(forwarded);
+          if (forwarded.defaultPrevented) event.preventDefault();
+        });
       });
       let positionReady = false;
       view.on(
@@ -274,7 +294,7 @@ export const EpubReader = forwardRef<ReaderHandle, Props>(function EpubReader(pr
           displayed: { page: number; total: number };
         };
       };
-      if (location.start) {
+      if (location?.start) {
         current.current = {
           kind: 'epub',
           cfi: location.start.cfi,
@@ -289,6 +309,11 @@ export const EpubReader = forwardRef<ReaderHandle, Props>(function EpubReader(pr
           pageLabel: `${location.start.displayed.page} / ${location.start.displayed.total} in chapter`,
         });
       }
+      // EPUB.js can resolve display before its RAF-backed location calculation.
+      // currentLocation() may therefore be empty even though prose is visible.
+      // Request a fresh source location after opening the restoration gate; never
+      // invent a locator or leave the controls waiting for a discarded early event.
+      void view.reportLocation();
       let lastWidth = container.current!.clientWidth,
         lastHeight = container.current!.clientHeight;
       resize = new ResizeObserver(() => {
