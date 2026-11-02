@@ -2,6 +2,134 @@ import { test, expect } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import JSZip from 'jszip';
 
+declare global {
+  interface Window {
+    __voiceChoice: {
+      peak: number;
+      hash: string;
+      downloads: string[];
+      player: HTMLAudioElement | null;
+    };
+  }
+}
+
+test('voice choices produce distinct real audio, reuse the engine and reopen offline', async ({
+  page,
+  context,
+}) => {
+  test.skip(!process.env.HUSH_TEST_WEB_VOICE, 'Opt in to real WASM inference.');
+  test.setTimeout(300000);
+  await page.addInitScript(() => {
+    const record = (window.__voiceChoice = {
+      peak: 0,
+      hash: '',
+      downloads: [] as string[],
+      player: null as HTMLAudioElement | null,
+    });
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = (input, options) => {
+      record.downloads.push(String(input));
+      return originalFetch(input, options);
+    };
+    const OriginalAudio = window.Audio;
+    window.Audio = function (src?: string) {
+      const audio = new OriginalAudio(src);
+      record.player = audio;
+      const ctx = new AudioContext();
+      const analyser = ctx.createAnalyser();
+      ctx.createMediaElementSource(audio).connect(analyser);
+      analyser.connect(ctx.destination);
+      const samples = new Float32Array(analyser.fftSize);
+      setInterval(() => {
+        if (!audio.paused) {
+          analyser.getFloatTimeDomainData(samples);
+          record.peak = Math.max(record.peak, ...samples.map(Math.abs));
+        }
+      }, 30);
+      audio.addEventListener('play', () => void ctx.resume());
+      audio.addEventListener('loadedmetadata', async () => {
+        if (!audio.src.startsWith('blob:')) return;
+        const bytes = await (await originalFetch(audio.src)).arrayBuffer();
+        record.hash = Array.from(
+          new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)),
+          (byte) => byte.toString(16).padStart(2, '0'),
+        ).join('');
+      });
+      return audio;
+    } as unknown as typeof Audio;
+  });
+  await page.goto('./');
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+  });
+  await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+  await page.getByRole('button', { name: 'Library settings', exact: true }).click();
+  const picker = page.getByRole('combobox', { name: 'Narrator voice', exact: true });
+  await expect(picker.locator('option')).toHaveCount(28);
+  await picker.selectOption('am_michael');
+  expect(
+    await page.evaluate(() =>
+      window.__voiceChoice.downloads.filter((url) => /\.onnx|\.bin|\.wasm/.test(url)),
+    ),
+  ).toEqual([]);
+  await page.getByRole('button', { name: /Enable browser voice/ }).click();
+  const ready = page.getByText('Your browser voice is ready. Open a book and choose Listen.', {
+    exact: true,
+  });
+  await expect(ready).toBeVisible({ timeout: 180000 });
+  const downloads = await page.evaluate(() => window.__voiceChoice.downloads);
+  expect(downloads.filter((url) => url.endsWith('.bin'))).toEqual([
+    expect.stringContaining('am_michael.bin'),
+  ]);
+  const modelDownloads = downloads.filter((url) => url.endsWith('.onnx')).length;
+  expect(modelDownloads).toBe(1);
+  const preview = page.getByRole('button', { name: 'Preview voice', exact: true });
+  await preview.click();
+  await expect
+    .poll(() => page.evaluate(() => window.__voiceChoice.peak), { timeout: 120000 })
+    .toBeGreaterThan(0.01);
+  await expect.poll(() => page.evaluate(() => window.__voiceChoice.hash)).toMatch(/^[a-f0-9]{64}$/);
+  const michaelHash = await page.evaluate(() => window.__voiceChoice.hash);
+  await page.getByRole('button', { name: 'Close settings', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.__voiceChoice.player?.paused)).toBe(true);
+  await page.getByRole('button', { name: 'Library settings', exact: true }).click();
+  await picker.selectOption('bf_emma');
+  await page.getByRole('button', { name: 'Download Emma · 0.52 MB', exact: true }).click();
+  await expect(ready).toBeVisible({ timeout: 120000 });
+  expect(
+    await page.evaluate(
+      () => window.__voiceChoice.downloads.filter((url) => url.endsWith('.onnx')).length,
+    ),
+  ).toBe(modelDownloads);
+  await page.evaluate(() => {
+    window.__voiceChoice.peak = 0;
+    window.__voiceChoice.hash = '';
+  });
+  await preview.click();
+  await expect
+    .poll(() => page.evaluate(() => window.__voiceChoice.peak), { timeout: 120000 })
+    .toBeGreaterThan(0.01);
+  await expect.poll(() => page.evaluate(() => window.__voiceChoice.hash)).toMatch(/^[a-f0-9]{64}$/);
+  expect(await page.evaluate(() => window.__voiceChoice.hash)).not.toBe(michaelHash);
+  await page.getByRole('button', { name: 'Close settings', exact: true }).click();
+  await context.setOffline(true);
+  await page.reload();
+  await page.getByRole('button', { name: 'Library settings', exact: true }).click();
+  await expect(picker).toHaveValue('bf_emma');
+  await picker.selectOption('am_michael');
+  await preview.click();
+  await expect
+    .poll(() => page.evaluate(() => window.__voiceChoice.peak), { timeout: 120000 })
+    .toBeGreaterThan(0.01);
+  await expect.poll(() => page.evaluate(() => window.__voiceChoice.hash)).toBe(michaelHash);
+  expect(
+    await page.evaluate(() =>
+      window.__voiceChoice.downloads.filter((url) => /\.onnx|\.bin|\.wasm/.test(url)),
+    ),
+  ).toEqual([]);
+  await page.getByRole('button', { name: 'Close settings', exact: true }).click();
+});
+
 test('static browser neural voice plays real audio, continues chapters and reopens offline', async ({
   page,
   context,
@@ -103,6 +231,29 @@ test('static browser neural voice plays real audio, continues chapters and reope
   await page.getByLabel('Narration speed').selectOption('0.75');
   await page.getByLabel('Position in sentence').fill('0.5');
   await expect(page.locator('.hush-current-sentence')).toHaveCount(1);
+  // Changing the narrator preserves the source sentence, but must not reuse its old waveform.
+  await page.getByRole('button', { name: 'Audio options', exact: true }).click();
+  await page.getByRole('button', { name: 'Choose a voice', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Narrator voice', exact: true }).selectOption('bf_emma');
+  await page.getByRole('button', { name: 'Download Emma · 0.52 MB', exact: true }).click();
+  await expect(
+    page.getByText('Your browser voice is ready. Open a book and choose Listen.', { exact: true }),
+  ).toBeVisible({ timeout: 120000 });
+  await page.getByRole('button', { name: 'Close settings', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Listen', exact: true })).toBeFocused();
+  await page.getByRole('button', { name: 'Listen', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Pause narration', exact: true })).toBeVisible({
+    timeout: 120000,
+  });
+  await expect(
+    page.getByText('Voice or saved audio changed; continuing from this sentence.'),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Pause narration', exact: true }).click();
+  await expect(page.getByLabel('Narration speed')).toHaveValue('0.75');
+  await expect(page.frameLocator('.epub-view iframe').locator('body')).toContainText(
+    'first room was quiet',
+  );
+  await page.getByLabel('Position in sentence').fill('0.5');
   await page.getByRole('button', { name: 'Library', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Your reading room.' })).toBeVisible();
   await context.setOffline(true);
