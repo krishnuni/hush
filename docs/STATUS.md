@@ -1,6 +1,8 @@
-# Verification record — 27 October 2026
+# Verification record — 2 November 2026
 
 The redesigned browser edition is built for GitHub Pages at `/hush/`. This record separates executed local evidence, the configured remote gates and checks that need real devices.
+
+The full local browser run below was completed on 27 October. The locked install, 32 unit tests, `/hush/` production build and all 13 actual interface captures (including real voice setup and playback) were repeated successfully on 2 November.
 
 ## Executed local checks
 
@@ -30,7 +32,7 @@ The [browser workflow](https://github.com/krishnuni/hush/actions/workflows/verif
 
 That is **30 browser cases configured across both engines**, alongside 32 unit tests. Use the workflow result for the exact commit to establish remote execution, rather than treating the configured count as a success claim. Browser evidence artifacts include actual PNG and WAV files. The [Pages workflow](https://github.com/krishnuni/hush/actions/workflows/pages.yml) separately rebuilds and gates `main` publication on unit, Chromium reading/interface/neural and offline checks.
 
-Local WebKit execution was unavailable because required system libraries could not be installed in this environment. The remote workflow installs those dependencies on Ubuntu. Automated WebKit on Linux is still distinct from physical Safari/iOS.
+WebKit 27.2 also passed six repeated local contrast checks across desktop and phone layouts after its required system libraries were prepared. The contrast test waits for nested text to adopt the selected theme before measuring it; the entire axe scan remains enabled. The full WebKit document and inference suites run in CI on Ubuntu. Automated WebKit on Linux is still distinct from physical Safari/iOS.
 
 ## What these tests establish
 
