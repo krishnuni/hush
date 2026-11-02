@@ -110,10 +110,15 @@ try {
     await page
       .getByText('Your browser voice is ready. Open a book and choose Listen.', { exact: true })
       .waitFor({ timeout: 120000 });
+    await page
+      .getByRole('button', { name: 'Close settings', exact: true })
+      .scrollIntoViewIfNeeded();
+    await page.locator('.settings-dialog').evaluate((dialog) => dialog.scrollTo({ top: 0 }));
     await capture('voices-mobile');
     await page.setViewportSize({ width: 1440, height: 1040 });
     await page.getByRole('button', { name: 'Preview voice', exact: true }).click();
     await page.getByText('Listening to Emma', { exact: true }).waitFor({ timeout: 120000 });
+    await page.locator('.settings-dialog').evaluate((dialog) => dialog.scrollTo({ top: 0 }));
     await capture('voices-desktop');
     await page.getByRole('button', { name: 'Close settings', exact: true }).click();
   } else {
