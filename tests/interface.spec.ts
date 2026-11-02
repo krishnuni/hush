@@ -115,4 +115,13 @@ test('WCAG checks on the empty library and narration setup; no automatic model d
     await expect(page.locator('.voice-status strong')).toHaveCSS('color', ink);
     expect((await scan()).violations).toEqual([]);
   }
+  await page.getByText('Offline use & managing voices', { exact: true }).click();
+  await page
+    .getByRole('dialog')
+    .evaluate((dialog) => dialog.scrollTo({ top: dialog.scrollHeight }));
+  await expect(page.getByRole('button', { name: 'Close settings', exact: true })).toBeInViewport({
+    ratio: 1,
+  });
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: 'Library settings', exact: true })).toBeFocused();
 });
