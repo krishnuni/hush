@@ -12,7 +12,7 @@ A publication-inspired library replaces the sidebar dashboard. Individual jacket
 
 The reading surface has a restrained measure and adjustable type, spacing, width and margins. Native modal tools keep that measure stable. On phones they become bottom sheets, while bookmarking and page controls move within thumb reach. Light, Warm and Night have separately tuned palettes. Reduced-motion preferences disable movement; supported browsers preserve the selected jacket through the transition into reading.
 
-Narration is an integrated transport with actual playback state, sentence navigation, a media-clock seek control, speed and volume. Setup explains the optional download and local processing. Percentages and highlights follow actual bytes and media events. [DESIGN.md](docs/DESIGN.md) records the audit, tokens, component responsibilities, licensing and rationale.
+Narration is an integrated transport with actual playback state, sentence navigation, a media-clock seek control, speed and volume. A grouped voice selector offers 28 English narrators, saved profiles and a real spoken preview. Setup explains the optional download and local processing. Percentages and highlights follow actual bytes and media events. [DESIGN.md](docs/DESIGN.md) records the audit, tokens, component responsibilities, licensing and rationale.
 
 ![Hush reading and listening in its Night appearance](docs/images/reader-night.png)
 
@@ -23,32 +23,41 @@ Narration is an integrated transport with actual playback state, sentence naviga
 
 </details>
 
+<details>
+<summary>Voice selection and local preview</summary>
+
+<img src="docs/images/voices-desktop.png" alt="Narrator settings with Emma selected and genuine local voice preview" width="700" />
+
+<img src="docs/images/voices-mobile.png" alt="The mobile narrator selector with a downloaded British English voice" width="320" />
+
+</details>
+
 ## Read and listen
 
 1. Open **[Hush](https://krishnuni.github.io/hush/)** over HTTPS, or run the local preview below.
 2. Import a supported, DRM-free EPUB or text PDF. Three original sample books are available for exploring the reader.
 3. Set the theme, typeface, size, line spacing, margins and width. Chapters, bookmarks and reading places are saved automatically.
-4. Choose **Listen**. In Settings, select **Enable browser voice** if the voice has not been downloaded. Keep the tab open during setup; Wi-Fi is recommended.
-5. After setup, return to the book and choose **Listen**. Pause, previous/next sentence, sentence seeking and speed are in the dock; Audio options opens volume and device-output guidance. Narration highlights its sentence and continues into the next chapter.
+4. Choose **Listen**, then select a narrator in **Settings → Narrator**. There are 28 American and British English voices. Select **Enable browser voice** to download the engine and your first voice. Keep the tab open during setup; Wi-Fi is recommended.
+5. Try **Preview voice**, then return to the book and choose **Listen**. Pause, previous/next sentence, sentence seeking and speed are in the dock; Audio options opens volume and device-output guidance. Narration highlights its sentence and continues into the next chapter.
 6. For a PDF, inspect the extracted reading order before starting narration. Layout is preserved on the page; extracted order is not always the intended prose order.
 
-The optional English voice pack is **114,527,513 bytes, about 115 MB decimal**. It includes the quantised Kokoro model, tokenizer, Heart voice and matching ONNX WebAssembly runtime. Opening the reader does not automatically download these voice weights. The initial shell also contains the bundled neural JavaScript/phonemiser code, but does not instantiate the model until requested.
+The optional English voice pack is **114,527,513 bytes, about 115 MB decimal**. It includes the quantised Kokoro model, tokenizer, your selected voice and matching ONNX WebAssembly runtime. Heart is the default. Each additional voice profile is **522,240 bytes (0.52 MB)** and downloads only when explicitly enabled; the shared engine is reused. Saved choices and downloaded voices remain available offline. From the listening dock, **Audio options → Choose a voice** opens the selector. Voice previews use the same inference and playback code without changing the book’s listening cursor. Opening the reader does not automatically download these voice weights. The initial shell also contains the bundled neural JavaScript/phonemiser code, but does not instantiate the model until requested.
 
 After the shell and voice setup have completed, imported books and browser narration can be reopened offline. Browser storage is local to this site, browser and device. Keep your original books: clearing site data, private browsing or OS storage eviction can remove the library and downloaded voice. This edition does not synchronise libraries between devices.
 
 ## Features and boundaries
 
-| Area              | Browser edition                                                                                                       |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Library           | EPUB/PDF import, duplicate detection, search, sorting, editable details and reading/finished filters                  |
-| EPUB              | Reflowable chapters, illustrations, table of contents, content anchors and sentence highlights                        |
-| PDF               | PDF.js page rendering, selectable text, page/zoom/rotation/scroll restoration and text-order preview                  |
-| Reading           | Light, Warm and Night themes; Noto Serif/Sans or publisher fonts; size/spacing/width/margin controls; focus mode      |
-| Saved state       | Bookmarks, semantic reading positions and a separate listening cursor                                                 |
-| Neural audio      | Kokoro q8 + Heart voice, worker-based WASM inference, playback controls, one-clip look-ahead and chapter continuation |
-| Offline           | Versioned app shell, separately removable voice assets, local originals and bounded generated-audio cache             |
-| Mobile web        | Responsive controls, touch layout, safe areas, installable manifest and reusable media element                        |
-| Deliberate limits | English narration; no DRM removal, scanned-PDF OCR, cloud sync or guaranteed background/lock-screen playback          |
+| Area              | Browser edition                                                                                                             |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Library           | EPUB/PDF import, duplicate detection, search, sorting, editable details and reading/finished filters                        |
+| EPUB              | Reflowable chapters, illustrations, table of contents, content anchors and sentence highlights                              |
+| PDF               | PDF.js page rendering, selectable text, page/zoom/rotation/scroll restoration and text-order preview                        |
+| Reading           | Light, Warm and Night themes; Noto Serif/Sans or publisher fonts; size/spacing/width/margin controls; focus mode            |
+| Saved state       | Bookmarks, semantic reading positions and a separate listening cursor                                                       |
+| Neural audio      | Kokoro q8 + 28 English voices, worker-based WASM inference, playback controls, one-clip look-ahead and chapter continuation |
+| Offline           | Versioned app shell, separately removable voice assets, local originals and bounded generated-audio cache                   |
+| Mobile web        | Responsive controls, touch layout, safe areas, installable manifest and reusable media element                              |
+| Deliberate limits | English narration; no DRM removal, scanned-PDF OCR, cloud sync or guaranteed background/lock-screen playback                |
 
 Fixed-layout EPUB is rejected rather than treated as a reliable reflowable book. PDF text order, multilingual content and unusual publisher markup require document-specific checks. A browser can suspend a tab or worker when the screen locks; do not treat this as an audiobook app with an OS background-audio entitlement.
 
@@ -127,7 +136,7 @@ Pocket TTS remains the optional Tauri desktop adapter. Its implemented Rust proc
 
 A dedicated module worker owns one loaded model. The UI stays responsive during inference. The baseline uses **one WASM thread**, which works without cross-origin-isolation headers or SharedArrayBuffer. GitHub Pages does not let a project set arbitrary COOP/COEP headers. WebGPU/fp32 could improve throughput on some devices, but would increase the download and hardware-dependent failure surface; it is not a prerequisite or a claimed acceleration feature here.
 
-Kokoro’s text normalisation/phonemisation is retained. Hush supplies the pinned tokenizer, model and fixed voice locally and overrides the inference boundary to avoid a hidden `resolve/main` voice request. Model configuration, tokenizer files, model, voice and runtime all come from this site at runtime. An oversized model token sequence is rejected instead of silently reading a truncated passage.
+Kokoro’s text normalisation/phonemisation is retained. Hush supplies the pinned tokenizer, model and selected voice locally and overrides the inference boundary to avoid a hidden `resolve/main` voice request. Model configuration, tokenizer files, model, voice and runtime all come from this site at runtime. An oversized model token sequence is rejected instead of silently reading a truncated passage.
 
 ### Why separate caches?
 
@@ -135,16 +144,16 @@ Kokoro’s text normalisation/phonemisation is retained. Hush supplies the pinne
 | ----------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------- |
 | Library IndexedDB       | Managed original bytes, book metadata, preferences, locators and bookmarks | Kept until the user removes books or site data is cleared  |
 | App-shell Cache Storage | HTML, code, CSS, fonts, PDF worker and small voice manifest                | Versioned with the build, scoped to the app base path      |
-| Voice Cache Storage     | Verified model, tokenizer, fixed voice and ONNX runtime                    | Explicit enable/download; removable independently of books |
+| Voice Cache Storage     | Verified model, tokenizer, downloaded voice profiles and ONNX runtime      | Explicit enable/download; removable independently of books |
 | Audio IndexedDB         | Generated WAV clips and LRU metadata                                       | Disposable: at most 128 MiB / 192 clips / 5 MB per clip    |
 
-Voice setup validates a restricted seven-file manifest, exact lengths and SHA-256 digests. Its installed marker is written only after all assets are present. Cancellation leaves completed verified files available for a retry. Cache keys include the app path so one Pages app cannot accidentally clear another Hush installation’s voice cache.
+Voice setup validates a restricted seven-file default manifest, exact lengths and SHA-256 digests. A closed, checksum-pinned catalogue from `kokoro-js@1.2.1` substitutes the selected profile while retaining the same six engine assets. Its installed marker is written after the required assets are present; readiness checks also verify that the selected profile exists. Failed additional downloads retain previously installed voices. Cancellation leaves completed verified files available for a retry. Cache keys include the app path so one Pages app cannot accidentally clear another Hush installation’s voice cache.
 
 ### Why cache exact audio and reuse a player?
 
 The narration controller permits one active clip and one look-ahead request. Browser inference has one computation plus a replaceable queued seek; repeated seeks cannot create an unbounded job queue. An in-flight WASM kernel is not preempted mid-instruction. Cancelled results are ignored, and removing the voice terminates its worker.
 
-Listening checkpoints retain a sentence/source hash, model/runtime/voice fingerprint, clip key, seconds, speed and volume. An in-sentence offset is restored only when the **same cached WAV** is available. If audio was evicted or the engine changed, Hush restarts at the source sentence and explains the adjustment. It does not apply old seconds to a newly generated waveform.
+The selected narrator is a small, app-path-scoped local preference. Listening checkpoints retain a sentence/source hash, model/runtime/voice fingerprint, clip key, seconds, speed and volume. An in-sentence offset is restored only when the **same cached WAV** is available. If audio was evicted or the engine changed, Hush restarts at the source sentence and explains the adjustment. It does not apply old seconds to a newly generated waveform. Changing voices checkpoints and stops narration; the next Listen starts at that saved sentence in the new voice. Voice-specific clip keys prevent cached speech from another narrator being reused.
 
 One HTML audio element is activated in a user gesture and reused across clips. This helps mobile autoplay rules; if playback is still refused, the controller enters a paused state with an explicit Play control. Sentence highlighting follows the media `playing` event, not an estimated synthesis timer. Whole-clip look-ahead can still gap if a phone generates speech more slowly than it plays.
 
@@ -169,7 +178,7 @@ HUSH_TEST_WEB_VOICE=1 npm run test:e2e -- tests/web-voice.spec.ts --workers=1
 HUSH_TEST_WEB_VOICE=1 npm run test:webkit
 ```
 
-The production browser test generates neural audio using the actual bundled worker/model. Interface tests also cover search/edit persistence, keyboard modality, focus return, iframe navigation, focus mode, bookmarks and axe WCAG A/AA checks. It measures non-silent PCM from Hush’s media stream, checks highlighting, pause/speed/seek, reloads with networking disabled, restores the cached listening position, and naturally enters the next EPUB chapter. It also asserts that no HTTP POST or external HTTP origin was used. It does not mock synthesis to establish this result. Unit tests use controlled media only for deterministic state-machine races.
+The production browser test generates neural audio using the actual bundled worker/model. Interface tests also cover search/edit persistence, keyboard modality, focus return, iframe navigation, focus mode, bookmarks and axe WCAG A/AA checks. It measures non-silent PCM from Hush’s media stream, checks highlighting, pause/speed/seek, reloads with networking disabled, restores the cached listening position, and naturally enters the next EPUB chapter. It also asserts that no HTTP POST or external HTTP origin was used. A second real-inference flow compares voice-specific WAV hashes and non-silent output, confirms that only the new profile downloads, and switches saved voices after an offline reload. The reader flow also changes narrators mid-sentence and verifies source-position preservation. It does not mock synthesis to establish these results. Unit tests use controlled media only for deterministic state-machine races.
 
 See [STATUS.md](docs/STATUS.md) for executed counts and limitations. Physical speakers/headphones, real iOS/Android hardware, battery/thermal performance and broad publisher/PDF compatibility are distinct checks. Physical-device performance and audible quality remain separate from the automated browser and hosted smoke checks.
 
@@ -193,7 +202,7 @@ The Tauri/Rust host and SQLite/Pocket TTS adapter remain available; they are not
 
 ## Licences, attribution and source
 
-Hush’s original source retains its [MIT licence](LICENSE). Dependencies retain their own terms. Kokoro.js, Transformers.js, the ONNX model and fixed Heart voice are attributed separately; the model repository declares Apache-2.0. Newsreader, IBM Plex Sans and Noto use the SIL Open Font License. Their copyright statements are included in the bundled notices. UI fonts are served locally, including a true Newsreader italic. The phonemiser’s JavaScript wrapper declares Apache-2.0 and embeds eSpeak NG, whose GPL-3.0-or-later notice is included. The combined browser distribution must preserve these notices and provide the applicable component source; the application’s MIT notice does not replace upstream terms.
+Hush’s original source retains its [MIT licence](LICENSE). Dependencies retain their own terms. Kokoro.js, Transformers.js, the ONNX model and English voice profiles are attributed separately; the model repository declares Apache-2.0. Newsreader, IBM Plex Sans and Noto use the SIL Open Font License. Their copyright statements are included in the bundled notices. UI fonts are served locally, including a true Newsreader italic. The phonemiser’s JavaScript wrapper declares Apache-2.0 and embeds eSpeak NG, whose GPL-3.0-or-later notice is included. The combined browser distribution must preserve these notices and provide the applicable component source; the application’s MIT notice does not replace upstream terms.
 
 `npm run build` collects distribution notices into `THIRD_PARTY_NOTICES.txt`, including the eSpeak licence and source/build links. The browser Settings links to those notices. The unmodified phonemiser source is [version 1.2.1 / commit 6835144](https://github.com/xenova/phonemizer.js/tree/6835144b7ee9043129222549c1ed2f6a27216278); its embedded engine’s source is [eSpeak NG](https://github.com/espeak-ng/espeak-ng). Source and lockfiles for Hush are supplied in this repository. No DRM bypass or voice cloning is provided.
 
