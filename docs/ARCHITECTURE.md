@@ -45,7 +45,7 @@ any of these stores; originals should be retained outside the application.
 
 `browserVoice.ts` handles setup, capability checks, progress, cancellation,
 worker RPC, errors and timeouts. `browser.worker.ts` owns one Kokoro model and
-fixed Heart voice. Transformers.js loads the q8 model through ONNX Runtime Web
+selected English voice profile. Transformers.js loads the q8 model through ONNX Runtime Web
 using single-thread WASM, with remote model access disabled. Runtime, tokenizer,
 voice and model are served from this site's `narration/` path. Pinning/staging
 happens at build time in `prepare-web-voice.mjs`; generated binaries stay out
@@ -63,8 +63,12 @@ Kokoro's normalization and phonemisation remain intact. Hush supplies a pinned
 same-origin voice rather than allowing an implicit external voice download.
 Chunks are bounded at 420 Unicode code points. Token sequences beyond the
 model limit fail visibly instead of being silently truncated. The engine key
-includes model revision, voice and runtime; changing these requires a version
-update so prior cached audio is not mistaken for the same waveform.
+includes model revision, voice and runtime. Selecting another narrator changes
+that fingerprint automatically; model/runtime upgrades must update it too, so
+prior cached audio is not mistaken for the same waveform. The 28 permitted
+English profiles are pinned in `src/audio/voices.json`; the selected ID also
+controls accent-specific phonemisation. Shared engine files remain cached,
+and an additional profile needs only 522,240 bytes.
 
 ## Source mapping, media and continuity
 

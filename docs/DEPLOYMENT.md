@@ -5,6 +5,10 @@ Source: **https://github.com/krishnuni/hush**
 
 Hush is a static browser application. GitHub Pages serves the built files; EPUB/PDF processing, IndexedDB storage, neural inference and media playback execute in the visitor's browser. No application backend or voice subscription is required.
 
+## Published redesign
+
+The literary redesign was merged in [#2](https://github.com/krishnuni/hush/pull/2) at `ffd7a906c23789855de1f3dbe16c549b5cb15a0d`. Its [Pages run](https://github.com/krishnuni/hush/actions/runs/41451226325) completed successfully. The hosted browser smoke check covered original-sample imports, chapter navigation, bookmarks, Night appearance and reload restoration, followed by explicit voice installation and actual playback state. Physical speaker output remains a separate check.
+
 ## Release path
 
 1. Complete changes on a branch and inspect the actual production layouts.
@@ -13,7 +17,7 @@ Hush is a static browser application. GitHub Pages serves the built files; EPUB/
 4. Confirm the build and deploy jobs succeed and the `github-pages` environment points to the expected commit.
 5. Open the canonical HTTPS URL, confirm the new identity appears, and smoke-test sample import, reading, navigation, preferences and narration setup. A source upload or workflow definition alone is not a deployed application.
 
-The application remains scoped to `/hush/`: fonts, workers, EPUB resources, voice URLs, service-worker scope and caches all use the build base. There are no server-side routes. The static artifact includes the optional voice assets; the browser downloads the approximately 115 MB pack only after explicit enable. Model binaries are ignored by git and prepared reproducibly from the pinned upstream revision at build time.
+The application remains scoped to `/hush/`: fonts, workers, EPUB resources, voice URLs, service-worker scope and caches all use the build base. There are no server-side routes. The static artifact includes all 28 English voice profiles; the browser downloads the approximately 115 MB engine/first-voice pack only after explicit enable. Additional selected profiles download individually at 522,240 bytes each. The original Heart cache is retained across this update. Model binaries are ignored by git and prepared reproducibly from the pinned upstream revision at build time.
 
 ## Reproduce
 
