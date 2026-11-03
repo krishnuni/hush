@@ -9,6 +9,10 @@ Hush is a static browser application. GitHub Pages serves the built files; EPUB/
 
 The literary redesign was merged in [#2](https://github.com/krishnuni/hush/pull/2) at `ffd7a906c23789855de1f3dbe16c549b5cb15a0d`. Its [Pages run](https://github.com/krishnuni/hush/actions/runs/41451226325) completed successfully. The hosted browser smoke check covered original-sample imports, chapter navigation, bookmarks, Night appearance and reload restoration, followed by explicit voice installation and actual playback state. Physical speaker output remains a separate check.
 
+## Published voice choice
+
+[Release #3](https://github.com/krishnuni/hush/pull/3) deployed application commit `7d42b3002926b17b8b03f2ec854c6a5785eef4a6` on 3 November 2026. The [Pages build/deploy run](https://github.com/krishnuni/hush/actions/runs/41644474610) succeeded, as did the [full Chromium/WebKit verification](https://github.com/krishnuni/hush/actions/runs/41644474824): 37 unit tests and 34 browser cases. The hosted check confirmed the installed engine survived the update, additional profiles downloaded individually, both American and British previews played, and saved book state remained available. See [STATUS.md](STATUS.md) for scope and hardware limitations.
+
 ## Release path
 
 1. Complete changes on a branch and inspect the actual production layouts.

@@ -1,8 +1,14 @@
-# Verification record — 2 November 2026
+# Verification record — 3 November 2026
 
 The redesigned browser edition is built for GitHub Pages at `/hush/`. This record separates executed local evidence, the configured remote gates and checks that need real devices.
 
-The voice-selection update was verified on 2 November with 37 unit tests, a `/hush/` production build, 16 Chromium reader/interface/neural cases and 2 offline cases. The screenshot set now contains 15 real interface captures, including voice setup, narration and preview. The final phone-sheet refinements also repeat the interface/accessibility checks.
+The voice-selection update was verified locally on 2 November with 37 unit tests, a `/hush/` production build, 16 Chromium reader/interface/neural cases and 2 offline cases. The screenshot set now contains 15 real interface captures, including voice setup, narration and preview. The final phone-sheet refinements also repeat the interface/accessibility checks.
+
+## Published voice-choice release
+
+The deployed application is commit [`7d42b30`](https://github.com/krishnuni/hush/commit/7d42b3002926b17b8b03f2ec854c6a5785eef4a6), merged through [#3](https://github.com/krishnuni/hush/pull/3). Its [full verification run](https://github.com/krishnuni/hush/actions/runs/41644474824) passed on 3 November: **37 unit tests and 34 browser cases** (16 Chromium, 2 offline, 16 WebKit). Four optional native Pocket cases were explicitly skipped in Chromium. The [Pages build and deployment](https://github.com/krishnuni/hush/actions/runs/41644474610) also completed successfully.
+
+A hosted-browser smoke check installed Heart before the update, then reopened the published release with the same book, saved chapter, bookmark and Night appearance. The existing engine remained ready. Emma and Michael each required only their 0.52 MB profile and both reached actual preview playback. The selected voice also played the original EPUB and continued through its chapters; Audio options opened the narrator selector. This verifies the exercised hosted flow, not physical iPhone speaker output.
 
 ## Executed local checks
 
