@@ -1,7 +1,8 @@
 import type { NarrationStatus } from '../domain/types';
 import {
   WEB_ENGINE,
-  WEB_ENGINE_KEY,
+  webEngineKey,
+  filesForVoice,
   voiceCacheName,
   validManifest,
   type VoiceManifest,
@@ -9,10 +10,28 @@ import {
   type VoiceRequest,
   type VoiceResponse,
 } from './browserProtocol';
+import {
+  BROWSER_VOICES,
+  DEFAULT_VOICE,
+  isVoiceId,
+  voiceInfo,
+  voiceFile,
+  type VoiceId,
+} from './voices';
 const base = import.meta.env.BASE_URL;
+const preferenceKey = `hush-voice-choice:${base}`;
+const initialVoice = (): VoiceId => {
+  try {
+    const saved = localStorage.getItem(preferenceKey);
+    return isVoiceId(saved) ? saved : DEFAULT_VOICE;
+  } catch {
+    return DEFAULT_VOICE;
+  }
+};
 const assetRoot = () => new URL(base + 'narration/', location.origin).href;
 const abortError = () => new DOMException('Voice operation cancelled', 'AbortError');
 type Job = {
+  voice: VoiceId;
   text: string;
   signal: AbortSignal;
   resolve(blob: Blob): void;
@@ -21,8 +40,10 @@ type Job = {
 
 export class BrowserVoice {
   private value: WebVoiceState = {
+    voiceId: initialVoice(),
     phase: 'disabled',
     progress: 0,
+    downloadBytes: 0,
     message: 'An optional English neural voice, processed on your device.',
   };
   private listeners = new Set<() => void>();
@@ -61,30 +82,77 @@ export class BrowserVoice {
       !!crypto.subtle
     );
   }
-  private async installed() {
-    if (!this.supported()) return false;
+  private async savedManifest() {
+    if (!this.supported()) return null;
     const cache = await caches.open(voiceCacheName(base));
     const saved = await cache.match(assetRoot() + 'manifest.json');
-    if (!saved) return false;
-    const manifest = (await saved.json()) as VoiceManifest;
-    if (!validManifest(manifest)) return false;
-    for (const file of manifest.files)
-      if (!(await cache.match(assetRoot() + file.path))) return false;
-    return true;
+    if (!saved) return null;
+    const manifest: unknown = await saved.json();
+    return validManifest(manifest) ? manifest : null;
+  }
+  async availability(): Promise<{ engine: boolean; voices: VoiceId[] }> {
+    const manifest = await this.savedManifest();
+    if (!manifest) return { engine: false, voices: [] };
+    const cache = await caches.open(voiceCacheName(base));
+    const present = async (file: VoiceManifest['files'][number]) =>
+      (await cache.match(assetRoot() + file.path))?.headers.get('X-Hush-SHA256') === file.sha256;
+    const core = manifest.files.filter((file) => file.path !== 'af_heart.bin');
+    const engine = (await Promise.all(core.map(present))).every(Boolean);
+    const voices: VoiceId[] = [];
+    for (const voice of BROWSER_VOICES) {
+      if (isVoiceId(voice.id) && (await present(voiceFile(voice.id)))) voices.push(voice.id);
+    }
+    return { engine, voices };
+  }
+  private async installed(voice = this.value.voiceId) {
+    const manifest = await this.savedManifest();
+    if (!manifest) return false;
+    const cache = await caches.open(voiceCacheName(base));
+    const present = await Promise.all(
+      filesForVoice(manifest, voice).map(
+        async (file) =>
+          (await cache.match(assetRoot() + file.path))?.headers.get('X-Hush-SHA256') ===
+          file.sha256,
+      ),
+    );
+    return present.every(Boolean);
   }
   async status(): Promise<NarrationStatus> {
-    const available = await this.installed().catch(() => false);
+    const voice = this.value.voiceId;
+    const saved = await this.availability().catch(() => ({
+      engine: false,
+      voices: [] as VoiceId[],
+    }));
+    const available = saved.engine && saved.voices.includes(voice);
     return {
       available,
       engine: WEB_ENGINE,
-      ...(available ? { engineKey: WEB_ENGINE_KEY } : {}),
+      ...(available ? { engineKey: webEngineKey(voice) } : {}),
       reason: !this.supported()
         ? 'This browser needs HTTPS, WebAssembly, workers and local storage for neural narration.'
         : available
-          ? 'English · Heart voice · runs on your device using WebAssembly.'
-          : 'Enable the optional browser voice to listen. The model download is about 115 MB. Your book text stays on this device.',
+          ? `${voiceInfo(voice).name} · ${voiceInfo(voice).accent} · runs on your device.`
+          : saved.engine
+            ? `${voiceInfo(voice).name} needs a 0.52 MB voice profile. The shared engine is already saved.`
+            : 'Enable the optional browser voice to listen. The model download is about 115 MB. Your book text stays on this device.',
     };
   }
+  select = (voiceId: string) => {
+    if (!isVoiceId(voiceId) || this.setup || voiceId === this.value.voiceId) return;
+    this.releaseWorker();
+    try {
+      localStorage.setItem(preferenceKey, voiceId);
+    } catch {
+      /* Reading also works in restricted storage modes. */
+    }
+    this.emit({
+      voiceId,
+      phase: 'disabled',
+      progress: 0,
+      downloadBytes: 0,
+      message: `${voiceInfo(voiceId).name} selected. Download this voice to listen.`,
+    });
+  };
   enable = () => {
     if (this.setup) return this.setup;
     this.download = new AbortController();
@@ -96,30 +164,41 @@ export class BrowserVoice {
     return this.setup;
   };
   private async install(signal: AbortSignal) {
+    const voice = this.value.voiceId;
     try {
       if (!this.supported())
         throw new Error('Use an up-to-date browser over HTTPS with local storage enabled.');
       this.emit({ phase: 'checking', progress: 0, message: 'Checking the voice files…' });
-      const manifestResponse = await fetch(assetRoot() + 'manifest.json', { signal });
-      if (!manifestResponse.ok)
-        throw new Error('Voice files are missing from this build. Build Hush with npm run build.');
-      const manifest = (await manifestResponse.json()) as VoiceManifest;
+      let manifest: unknown;
+      try {
+        const response = await fetch(assetRoot() + 'manifest.json', { signal });
+        if (!response.ok) throw new Error('Voice files are missing from this build.');
+        manifest = await response.json();
+      } catch (error) {
+        if (signal.aborted) throw error;
+        manifest = await this.savedManifest();
+        if (!manifest) throw error;
+      }
       if (!validManifest(manifest))
         throw new Error('The voice file manifest is invalid. Reload Hush before retrying.');
       const cache = await caches.open(voiceCacheName(base));
-      // The marker is committed only after every pinned file is present.
-      await cache.delete(assetRoot() + 'manifest.json');
+      // Preserve other installed voices if this download is cancelled or fails.
+      const missing = [];
+      for (const file of filesForVoice(manifest, voice)) {
+        const existing = await cache.match(assetRoot() + file.path);
+        if (existing?.headers.get('X-Hush-SHA256') !== file.sha256) missing.push(file);
+      }
+      const downloadBytes = missing.reduce((sum, file) => sum + file.bytes, 0);
       let completed = 0;
-      this.emit({ phase: 'downloading', message: 'Saving the neural voice on this device…' });
-      for (const file of manifest.files) {
+      this.emit({
+        phase: 'downloading',
+        progress: 0,
+        downloadBytes,
+        message: `Saving ${voiceInfo(voice).name} on this device…`,
+      });
+      for (const file of missing) {
         if (signal.aborted) throw abortError();
         const url = assetRoot() + file.path;
-        const existing = await cache.match(url);
-        if (existing?.headers.get('X-Hush-SHA256') === file.sha256) {
-          completed += file.bytes;
-          this.emit({ progress: completed / manifest.bytes });
-          continue;
-        }
         const response = await fetch(url, { signal, cache: 'no-store' });
         if (!response.ok || !response.body)
           throw new Error(
@@ -135,7 +214,7 @@ export class BrowserVoice {
             received += value.byteLength;
             if (received > file.bytes) throw new Error('A voice file exceeds its expected size.');
             chunks.push(value);
-            this.emit({ progress: (completed + received) / manifest.bytes });
+            this.emit({ progress: (completed + received) / downloadBytes });
           }
         } finally {
           await reader.cancel().catch(() => {});
@@ -172,7 +251,7 @@ export class BrowserVoice {
         progress: 1,
         message: 'Loading the voice. This can take a little longer on a phone…',
       });
-      await this.rpc({ action: 'load' });
+      await this.rpc({ action: 'load', voice });
       if (signal.aborted) throw abortError();
       this.emit({
         phase: 'ready',
@@ -261,6 +340,7 @@ export class BrowserVoice {
       const aborted = () => reject(abortError());
       signal.addEventListener('abort', aborted, { once: true });
       const job: Job = {
+        voice: this.value.voiceId,
         text,
         signal,
         resolve: (blob) => {
@@ -282,10 +362,10 @@ export class BrowserVoice {
     this.active = true;
     try {
       if (job.signal.aborted) throw abortError();
-      if (!(await this.installed()))
+      if (!(await this.installed(job.voice)))
         throw new Error('Enable the browser voice in Settings before listening.');
       if (job.signal.aborted) throw abortError();
-      const response = await this.rpc({ action: 'synthesize', text: job.text });
+      const response = await this.rpc({ action: 'synthesize', text: job.text, voice: job.voice });
       if (job.signal.aborted) throw abortError();
       if (
         !('wav' in response) ||

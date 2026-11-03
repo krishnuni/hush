@@ -5,7 +5,7 @@ import { ClipProvider } from './clips';
 import { Narrator, type NarratorCallbacks } from './Narrator';
 export type { PlaybackState, Checkpoint } from './Narrator';
 export function useNarration(
-  repository: LibraryRepository,
+  repository: Pick<LibraryRepository, 'synthesize'>,
   onSentence: (sentence: SpokenSentence | null) => void,
   onCheckpoint: NarratorCallbacks['onCheckpoint'],
   nextPassage: NarratorCallbacks['nextPassage'],

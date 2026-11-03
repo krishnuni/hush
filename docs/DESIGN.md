@@ -67,6 +67,8 @@ On phones the heading becomes two lines, current-book details sit beside a small
 
 The main easing is `cubic-bezier(.22,1,.36,1)`. Motion uses transforms. View Transitions progressively connect the selected book with its reader object; navigation works without the API. Reduced-motion preferences bypass snapshots and disable movement, including sheets and playback pulses. There is no scroll hijacking.
 
+Voice choice uses a labelled native select grouped by American and British English. Native selection preserves platform keyboard and mobile picker behaviour without a custom menu dependency. Saved labels explain availability; download and preview remain separate, explicit actions. Previews use the production media controller and stop when the settings sheet closes. Preview precedes removal, download/privacy facts remain visible, and additional cache guidance is disclosed on demand. The settings header keeps Close reachable while its sheet scrolls. Changing voices returns focus to Listen and preserves the source sentence.
+
 The playback indicator pulses only in the media-backed playing state. Seeking uses the actual media clock and clip duration. Download percentages use received bytes. No decorative waveform or estimated readiness replaces real state.
 
 Icon controls are named and have visible focus. Native modals make the background inert, support Escape and restore their trigger. Reader panels explicitly loop Tab. EPUB iframe keys are relayed through the host page-turn path so narration is checkpointed/stopped consistently. Space on a focused button activates that button rather than the global playback shortcut.

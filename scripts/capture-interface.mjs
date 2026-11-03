@@ -102,7 +102,25 @@ try {
     await capture('narration-mobile');
     await page.getByRole('button', { name: 'Audio options', exact: true }).click();
     await capture('audio-options-mobile');
-    await page.getByRole('button', { name: 'Stop narration', exact: true }).click();
+    await page.getByRole('button', { name: 'Choose a voice', exact: true }).click();
+    await page
+      .getByRole('combobox', { name: 'Narrator voice', exact: true })
+      .selectOption('bf_emma');
+    await page.getByRole('button', { name: 'Download Emma · 0.52 MB', exact: true }).click();
+    await page
+      .getByText('Your browser voice is ready. Open a book and choose Listen.', { exact: true })
+      .waitFor({ timeout: 120000 });
+    await page
+      .getByRole('button', { name: 'Close settings', exact: true })
+      .scrollIntoViewIfNeeded();
+    await page.locator('.settings-dialog').evaluate((dialog) => dialog.scrollTo({ top: 0 }));
+    await capture('voices-mobile');
+    await page.setViewportSize({ width: 1440, height: 1040 });
+    await page.getByRole('button', { name: 'Preview voice', exact: true }).click();
+    await page.getByText('Listening to Emma', { exact: true }).waitFor({ timeout: 120000 });
+    await page.locator('.settings-dialog').evaluate((dialog) => dialog.scrollTo({ top: 0 }));
+    await capture('voices-desktop');
+    await page.getByRole('button', { name: 'Close settings', exact: true }).click();
   } else {
     await page.getByRole('button', { name: 'Close settings', exact: true }).click();
     await capture('reader-night');

@@ -1747,9 +1747,20 @@ input[type='range'] {
 }
 /* Narration setup makes the optional download an explicit choice. */
 .settings-dialog {
+  --settings-top: 28px;
+  --settings-gutter: 36px;
   width: 550px;
   max-width: calc(100% - 40px);
   padding: 28px 36px 34px;
+}
+.settings-dialog > header {
+  position: sticky;
+  top: calc(-1 * var(--settings-top));
+  z-index: 2;
+  margin: calc(-1 * var(--settings-top)) calc(-1 * var(--settings-gutter)) 0;
+  padding: var(--settings-top) var(--settings-gutter) 12px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
 }
 .settings-dialog > header .eyebrow {
   font-size: 9px;
@@ -1810,7 +1821,7 @@ input[type='range'] {
   border: 1px solid var(--line);
   margin: 20px 0;
 }
-.browser-voice-setup > p[role='status'] {
+.browser-voice-setup > p:is([role='status'], [role='alert']) {
   font-size: 12px;
   line-height: 1.6;
 }
@@ -1841,7 +1852,7 @@ input[type='range'] {
 .voice-setup-actions > .text-button {
   font-size: 10px;
   color: var(--muted);
-  min-height: 36px;
+  min-height: 44px;
 }
 .settings-footnote {
   font-size: 10px;
@@ -2887,6 +2898,8 @@ input[type='range'] {
     display: none;
   }
   .settings-dialog {
+    --settings-top: 23px;
+    --settings-gutter: 25px;
     max-width: 100%;
     width: 100%;
     max-height: 94dvh;
@@ -3396,4 +3409,55 @@ input[type='range']::-moz-range-thumb {
     width: 12px;
     height: 22px;
   }
+}
+
+/* Voice selection uses the same measured controls as reading appearance. */
+.voice-selector {
+  display: block;
+}
+.voice-selector > span {
+  font-size: 12px;
+  font-weight: 500;
+}
+.voice-selector select {
+  width: 100%;
+  min-height: 46px;
+  margin: 9px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: var(--canvas);
+  color: var(--ink);
+  font: 13px var(--sans);
+}
+.voice-choice-meta {
+  font: 10px var(--mono);
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 0 0 16px;
+}
+.voice-preview {
+  border-top: 1px solid var(--line);
+  margin-top: 12px;
+  padding-top: 8px;
+}
+.voice-preview button {
+  min-height: 44px;
+  gap: 8px;
+  color: var(--accent);
+}
+.voice-preview > span {
+  display: block;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.voice-download-details summary {
+  cursor: pointer;
+  font-size: 10px;
+  line-height: 1.5;
+  padding-block: 14px;
+}
+.voice-download-details .settings-footnote {
+  margin-top: 0;
 }

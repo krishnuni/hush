@@ -7161,6 +7161,6 @@ Public License instead of this License.  But first, please read
 
 
 ================================================================
-Kokoro-82M v1.0 ONNX q8 and Heart voice
+Kokoro-82M v1.0 ONNX q8 and English voice profiles
 Source: https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/tree/1939ad2a8e416c0acfeecc08a694d14ef25f2231
-Model and fixed voice supplied by hexgrad / ONNX Community under Apache-2.0. Model files are downloaded at build time, then served statically; they are not committed to the source repository.
+Model and English voice profiles supplied by hexgrad / ONNX Community under Apache-2.0. Model files are downloaded at build time, then served statically; they are not committed to the source repository.

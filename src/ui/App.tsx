@@ -89,6 +89,12 @@ export function App() {
   const fileInput = useRef<HTMLInputElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
   const settings = useRef<HTMLDialogElement>(null);
+  const listenButton = useRef<HTMLButtonElement>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const openSettings = () => {
+    setSettingsOpen(true);
+    settings.current?.showModal();
+  };
   const editDialog = useRef<HTMLDialogElement>(null);
   const saves = useRef(Promise.resolve());
   const positionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -412,7 +418,7 @@ export function App() {
     if (request !== narrationRequest.current || activeBookId.current !== bookId) return;
     setNarrationStatus(status);
     if (!status.available || !status.engineKey) {
-      settings.current?.showModal();
+      openSettings();
       return;
     }
     if (active?.format === 'pdf' && panel !== 'pdf-text') {
@@ -495,7 +501,7 @@ export function App() {
           onFilter={setFilter}
           onSort={setSort}
           onImport={() => fileInput.current?.click()}
-          onSettings={() => settings.current?.showModal()}
+          onSettings={openSettings}
           onOpen={openBook}
           onManage={setEditing}
           onSample={(index) => void addSample(index)}
@@ -744,7 +750,12 @@ export function App() {
                   <Bookmark size={18} />
                 </IconButton>
               </span>
-              <button className="listen-button" onClick={listen} disabled={!location}>
+              <button
+                ref={listenButton}
+                className="listen-button"
+                onClick={listen}
+                disabled={!location}
+              >
                 <Headphones size={16} />
                 Listen
               </button>
@@ -757,6 +768,14 @@ export function App() {
             <NarrationDock
               narration={narration}
               chapter={location?.chapter}
+              onVoiceSettings={
+                repository.kind === 'browser'
+                  ? () => {
+                      narration.stop();
+                      openSettings();
+                    }
+                  : undefined
+              }
               onStop={() => {
                 narration.stop();
                 reader.current?.highlight(null);
@@ -789,7 +808,15 @@ export function App() {
           </IconButton>
         </div>
       )}
-      <dialog ref={settings} className="settings-dialog" aria-labelledby="settings-title">
+      <dialog
+        ref={settings}
+        className="settings-dialog"
+        aria-labelledby="settings-title"
+        onClose={() => {
+          setSettingsOpen(false);
+          if (activeId && narration.state === 'idle') listenButton.current?.focus();
+        }}
+      >
         <header>
           <p className="eyebrow">
             <FoldMark />
@@ -820,7 +847,7 @@ export function App() {
           {narrationStatus.reason ??
             'Narration runs locally, with sentence tracking and saved listening positions.'}
         </p>
-        {repository.kind === 'browser' && (
+        {repository.kind === 'browser' && settingsOpen && (
           <BrowserVoicePanel onStatus={setNarrationStatus} onStop={narration.stop} />
         )}
         <div className="voice-principles">
